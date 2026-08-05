@@ -67,3 +67,22 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# CLion build directories (not covered by build/ above)
+cmake-build-*/
+
+# IDE / editor settings
+.idea/
+.vscode/
+.qtcreator/
+*.user
+
+# Qt generated sources
+*_autogen/
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# OS
+Thumbs.db
+.DS_Store
