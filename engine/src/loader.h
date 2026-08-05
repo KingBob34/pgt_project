@@ -1,9 +1,14 @@
 #ifndef LOADER_H
 #define LOADER_H
 #include <string>
-#include "story.h"
+#include <vector>
+#include "scene.h"
 
-// Load a story from a JSON file.
-Story loadStory(const std::string& path);
+// Reads a scene file and returns it parsed, resolved and validated
+Scene loadScene(const std::string& path);
+
+// Lists everything that stops this scene from being played
+// e.g. output pins has no wires
+std::vector<std::string> findProblems(const Scene& scene);
 
 #endif //LOADER_H

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "title": "Gate Test",
+    "author": "KingBob"
+  },
+
+  "variables": {
+    "health": 10,
+    "gold": 25,
+    "inventory": {
+      "guards_necklace": 1
+    },
+    "equipment": {
+      "chest_armour": "iron_chest"
+    },
+    "secrets": ["guard_bribable"]
+  },
+
+  "nodes": [
+    {
+      "id": 1,
+      "type": "start",
+      "position": {"x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "narrative",
+      "position": {"x": 200, "y": 0},
+      "text": "You reach a locked gate. A guard eyes you."
+    },
+    {
+      "id": 3,
+      "type": "choice",
+      "position": { "x": 440, "y": 0 },
+      "options": [
+        {"pin": "bribe", "text": "Bribe the guard", "whenUnmet": "show",
+          "condition":{
+            "any": [
+              {"var": "inventory.guards_necklace", "op": "==", "value": 1},
+              {"all": [
+                {"var": "gold", "op": ">=", "value": 20},
+                {"var": "secrets", "op": "contains", "value": "guard_bribable"}
+              ]}
+            ]
+          }},
+        {"pin": "leave", "text": "Walk away"},
+        {"pin": "force", "text": "Force your way through"}
+      ]
+    },
+    {
+      "id": 4,
+      "type": "narrative",
+      "position": { "x": 800, "y": -80 },
+      "text": "The guard pockets your gold and opens the gate.\n\nTHE END"
+    },
+    {
+      "id": 5,
+      "type": "narrative",
+      "position": { "x": 800, "y": 40 },
+      "text": "You have nothing to offer. The guard turns you away.\n\nTHE END"
+    },
+    {
+      "id": 6,
+      "type": "narrative",
+      "position": { "x": 440, "y": 260 },
+      "text": "You leave the gate behind.\n\nTHE END"
+    },
+    {
+      "id": 7,
+      "type": "end",
+      "position": { "x": 920, "y": -80 },
+      "outcome": "victory"
+    },
+    {
+      "id": 8,
+      "type": "end",
+      "position": { "x": 920, "y": 40 },
+      "outcome": "death"
+    },
+    {
+      "id": 9,
+      "type": "end",
+      "position": { "x": 440, "y": 380 },
+      "outcome": "neutral"
+    }
+  ],
+
+  "connections": [
+    {"from": 1, "fromPin": "out",   "to": 2},
+    {"from": 2, "fromPin": "out",   "to": 3},
+    {"from": 3, "fromPin": "bribe", "to": 4},
+    {"from": 3, "fromPin": "leave", "to": 6},
+    {"from": 3, "fromPin": "force", "to": 5},
+    {"from": 4, "fromPin": "out",   "to": 7},
+    {"from": 5, "fromPin": "out",   "to": 8},
+    {"from": 6, "fromPin": "out",   "to": 9}
+  ]
+
+}
