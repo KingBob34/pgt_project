@@ -34,7 +34,7 @@ struct ChoiceNode : Node
         return "choice";
     }
 
-    // One flow pin per option, so the pin list only exists once a story is loaded
+    // One flow pin per option
     [[nodiscard]] std::vector<std::string> outputPins() const override
     {
         std::vector<std::string> pins;

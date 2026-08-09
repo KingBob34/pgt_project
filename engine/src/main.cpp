@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
-        std::cerr << "Usage: logic_demo <scene-file.json>\n";
+        std::cerr << "Usage: engine <scene-file.json>\n";
         return 1;
     }
     try

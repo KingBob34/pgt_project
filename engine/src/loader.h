@@ -8,7 +8,7 @@
 Scene loadScene(const std::string& path);
 
 // Lists everything that stops this scene from being played
-// e.g. output pins has no wires
+// e.g. an output pin with no wire
 std::vector<std::string> findProblems(const Scene& scene);
 
 #endif //LOADER_H

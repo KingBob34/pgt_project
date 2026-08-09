@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(logic_demo LANGUAGES CXX)
+project(engine LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,7 +14,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(nlohmann_json)
 
-add_executable(logic_demo
+add_executable(engine
         src/value.h
         src/condition.h
         src/condition.cpp
@@ -43,11 +43,11 @@ add_executable(logic_demo
 )
 
 target_link_libraries(
-        logic_demo
+        engine
         PRIVATE nlohmann_json::nlohmann_json
 )
 
 target_include_directories(
-        logic_demo
+        engine
         PRIVATE src
 )

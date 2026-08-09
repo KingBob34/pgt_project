@@ -6,7 +6,6 @@
 
 // Entry point of the graph.
 // Holds no data of its own.
-// It exists so that execution has a well-defined place to begin.
 struct StartNode : Node
 {
     [[nodiscard]] std::string typeName() const override
