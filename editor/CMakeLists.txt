@@ -18,7 +18,7 @@ include(FetchContent)
 FetchContent_Declare(
         QtNodes
         GIT_REPOSITORY https://github.com/paceholder/nodeeditor.git
-        GIT_TAG master
+        GIT_TAG 7bbcd3e08c8330e9a5b47dbb730955849b8f547c
 )
 
 FetchContent_MakeAvailable(QtNodes)

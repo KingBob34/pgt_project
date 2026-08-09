@@ -4,6 +4,7 @@
 #include <QProxyStyle>
 #include <QScrollBar>
 #include <QStyleOption>
+#include <QKeyEvent>
 #include <cmath>
 #include <QtNodes/BasicGraphicsScene>
 #include <QtNodes/internal/NodeGraphicsObject.hpp>
@@ -90,6 +91,7 @@ void EditorView::mouseMoveEvent(QMouseEvent* event)
         verticalScrollBar()->setValue(verticalScrollBar()->value() - delta.y());
         return;
     }
+    // NOLINTNEXTLINE(bugprone-parent-virtual-call)
     QGraphicsView::mouseMoveEvent(event);
 }
 
@@ -135,3 +137,13 @@ void EditorView::onDeleteSelectedObjects()
     QtNodes::GraphicsView::onDeleteSelectedObjects();
 }
 
+void EditorView::keyReleaseEvent(QKeyEvent* event)
+{
+    QtNodes::GraphicsView::keyReleaseEvent(event);
+
+    // Releasing Shift resets the drag mode in the base class
+    if (dragMode() != QGraphicsView::RubberBandDrag)
+    {
+        setDragMode(QGraphicsView::RubberBandDrag);
+    }
+}
