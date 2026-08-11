@@ -78,4 +78,17 @@ namespace loom
 
         return &(*found);
     }
+
+    std::vector<std::string> objectKeys(const Value& value)
+    {
+        std::vector<std::string> keys;
+        if (!value.is_object()) return keys;
+
+        for (auto entry = value.begin(); entry != value.end(); ++entry)
+        {
+            keys.push_back(entry.key());
+        }
+
+        return keys;
+    }
 }

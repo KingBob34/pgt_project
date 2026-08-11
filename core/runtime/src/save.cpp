@@ -37,9 +37,9 @@ namespace loom
             out.clear();
             if (!isObject(source)) return;
 
-            for (auto entry = source.begin(); entry != source.end(); ++entry)
+            for (const std::string& key : objectKeys(source))
             {
-                out[entry.key()] = entry.value();
+                if (const Value* entry = objectGet(source, key)) out[key] = *entry;
             }
         }
     }

@@ -1,6 +1,7 @@
 #ifndef LOOM_VALUE_INSPECT_H
 #define LOOM_VALUE_INSPECT_H
 #include <string>
+#include <vector>
 #include "loom/value/value.h"
 
 // Everything the engine is allowed to do to a Value.
@@ -38,9 +39,12 @@ namespace loom
     // Refuses anything that is not already a string
     std::string asString(const Value& value);
 
-
     // Returns nullptr when the value is not an object or has no such key.
     const Value* objectGet(const Value& value, const std::string& key);
+
+    // The keys of an object, in the order the library keeps them.
+    // With objectGet, this is the only way to walk an object from outside.
+    std::vector<std::string> objectKeys(const Value& value);
 }
 
 #endif //LOOM_VALUE_INSPECT_H
