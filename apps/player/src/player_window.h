@@ -15,8 +15,7 @@ class QHBoxLayout;
 class QListWidget;
 class QTextEdit;
 
-// The game window. It is a front end, so it implements Host: the engine
-// pushes text and choices at it and never learns what becomes of them.
+// The game window. Implements Host, the engine's one route to a front end.
 class PlayerWindow : public QMainWindow, public loom::Host
 {
     Q_OBJECT

@@ -25,8 +25,7 @@ namespace
         return QString::fromStdString(text);
     }
 
-    // Colour components are written as 0.0 to 1.0, but JSON drops a zero
-    // fraction, so a hand written 1 has to read the same as 1.0.
+    // Colour components run from 0.0 to 1.0, and JSON drops a zero fraction.
     int channel(const loom::Value& source, const std::string& key)
     {
         const loom::Value* component = loom::objectGet(source, key);
@@ -334,7 +333,6 @@ void PlayerWindow::loadGame()
 
     interpreter->restore(state);
 
-    // Restoring lands on the node that was waiting, so the story has to be
-    // nudged for the buttons of that moment to be put back on screen.
+    // Re-runs the node that was waiting, which puts its buttons back on screen.
     interpreter->replay();
 }

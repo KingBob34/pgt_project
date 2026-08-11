@@ -1,15 +1,14 @@
 #include <QApplication>
 
-#include "player_window.h"
+#include "editor_window.h"
 
 int main(int argc, char** argv)
 {
     QApplication application(argc, argv);
 
-    PlayerWindow window;
+    EditorWindow window;
     window.show();
 
-    // The story may arrive as an argument, from "Open with" or a dropped file.
     if (argc > 1) window.openStory(QString::fromLocal8Bit(argv[1]));
 
     return QApplication::exec();
