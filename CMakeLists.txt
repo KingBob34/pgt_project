@@ -30,3 +30,7 @@ if (LOOM_BUILD_TESTS)
 endif ()
 
 add_subdirectory(core)
+
+if (LOOM_BUILD_TESTS)
+    add_subdirectory(tests)
+endif ()
