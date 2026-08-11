@@ -4,7 +4,9 @@
 #include <string>
 
 #include "loom/nodes/builtin.h"
+
 #include "loom/graph/validate.h"
+#include "loom/value/inspect.h"
 
 namespace
 {
@@ -129,7 +131,7 @@ TEST_CASE("a graph built from real node types validates cleanly", "[nodes][built
     loom::NodeInstance text;
     text.id = 2;
     text.type = "showText";
-    text.pinValues["text"] = "the gate is shut";
+    text.pinValues["textIn"] = "the gate is shut";
 
     loom::NodeInstance start;
     start.id = 1;
@@ -144,7 +146,7 @@ TEST_CASE("a graph built from real node types validates cleanly", "[nodes][built
     graph.nodes = { start, text, print };
     graph.connections = { { 1, "out", 2, "in" },
                           { 2, "out", 3, "in" },
-                          { 2, "text", 3, "value" } };
+                          { 2, "textOut", 3, "value" } };
 
     loom::Diagnostics diagnostics;
     loom::validate(graph, catalog, diagnostics);

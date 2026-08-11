@@ -7,6 +7,8 @@
 
 #include "loom/nodes/builtin.h"
 
+#include "loom/value/inspect.h"
+
 namespace
 {
     struct RecordingHost : loom::Host
@@ -123,7 +125,7 @@ TEST_CASE("Show Text pushes the words out and hands them on as data", "[nodes][b
     const loom::NodeCatalog catalog = builtins();
 
     FakeContext context;
-    context.inputs["text"] = "the gate is shut";
+    context.inputs["textIn"] = "the gate is shut";
     context.inputs["fontSize"] = 22;
 
     const loom::FlowResult result = catalog.find("showText")->execute(context);
@@ -131,7 +133,7 @@ TEST_CASE("Show Text pushes the words out and hands them on as data", "[nodes][b
     REQUIRE(result.pin == "out");
     REQUIRE(context.recorder.lines == std::vector<std::string>{ "the gate is shut" });
     REQUIRE(context.recorder.fontSizes == std::vector<long long>{ 22 });
-    REQUIRE(context.outputs.at("text") == "the gate is shut");
+    REQUIRE(context.outputs.at("textOut") == "the gate is shut");
 }
 
 TEST_CASE("Get Variable takes a second route when nothing is stored", "[nodes][behaviour]")

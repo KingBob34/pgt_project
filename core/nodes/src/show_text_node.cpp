@@ -9,13 +9,16 @@
 //
 //  Inputs
 //      in            Flow
-//      text          String    the words to show
+//      textIn        String    the words to show
 //      fontSize      Int
 //      color         Color
 //
 //  Outputs
 //      out           Flow
-//      text          String    the same words, for a later node to reuse
+//      textOut       String    the same words, for a later node to reuse
+//
+//  Both text pins are labelled "Text" on the canvas: the editor draws inputs
+//  and outputs in separate columns, so only the file needs them told apart.
 //==============================================================================
 
 namespace loom
@@ -32,16 +35,16 @@ namespace loom
             std::vector<PinSpec> pins(int) const override
             {
                 return { flowIn(),
-                         dataIn("text", "Text", PinType::String, Value("")),
+                         dataIn("textIn", "Text", PinType::String, Value("")),
                          dataIn("fontSize", "Font Size", PinType::Int, Value(16)),
                          dataIn("color", "Color", PinType::Color, defaultColor()),
                          flowOut(),
-                         dataOut("text", "Text", PinType::String) };
+                         dataOut("textOut", "Text", PinType::String) };
             }
 
             FlowResult execute(ExecutionContext& context) const override
             {
-                const std::string text = context.inputString("text");
+                const std::string text = context.inputString("textIn");
 
                 TextStyle style;
                 style.fontSize = context.inputInt("fontSize");
@@ -50,7 +53,7 @@ namespace loom
                 context.host().showText(text, style);
 
                 // The same words often feed a later node, so they leave as data too.
-                context.setOutput("text", text);
+                context.setOutput("textOut", text);
 
                 return FlowResult::continueOn("out");
             }
