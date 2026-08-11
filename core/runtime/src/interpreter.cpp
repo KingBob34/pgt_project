@@ -223,6 +223,26 @@ namespace loom
         run();
     }
 
+    void Interpreter::replay()
+    {
+        if (pending.kind != Pending::Kind::Choice) return;
+
+        const Frame& frame = callStack.back();
+
+        const Graph* graph = project.findGraph(frame.graphName);
+        const NodeInstance* node = graph != nullptr ? graph->findNode(frame.nodeId) : nullptr;
+        const NodeType* type = node != nullptr ? catalog.find(node->type) : nullptr;
+
+        if (type == nullptr) return;
+
+        const std::vector<PinSpec> pins = type->pins(node->extraPins);
+        RuntimeContext context(*graph, *node, pins, outputs, variables, host);
+
+        // Running the node again only re-issues the prompt: it suspended last
+        // time without changing anything, so it will do the same now.
+        type->execute(context);
+    }
+
     bool Interpreter::finished() const
     {
         return done && pending.kind == Pending::Kind::None;

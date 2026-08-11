@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 2,
+  "meta": { "title": "Gate Test", "author": "KingBob" },
+  "entry": "gate",
+  "graphs": [
+    {
+      "name": "gate",
+      "meta": { "title": "Gate Test", "author": "KingBob" },
+      "nodes": [
+        { "id": 1,  "type": "sceneStart",   "position": { "x": 0.0,    "y": 0.0 } },
+        { "id": 2,  "type": "showText",     "position": { "x": 240.0,  "y": 0.0 },
+          "pinValues": { "textIn": "The guard blocks the gate. His eyes go to your purse.", "fontSize": 18 } },
+        { "id": 3,  "type": "setVariable",  "position": { "x": 480.0,  "y": 0.0 },
+          "pinValues": { "name": "gold" } },
+        { "id": 4,  "type": "integerValue", "position": { "x": 480.0,  "y": 200.0 },
+          "pinValues": { "value": 25 } },
+        { "id": 5,  "type": "getVariable",  "position": { "x": 720.0,  "y": 0.0 },
+          "pinValues": { "name": "gold" } },
+        { "id": 6,  "type": "greater",      "position": { "x": 960.0,  "y": 0.0 } },
+        { "id": 7,  "type": "integerValue", "position": { "x": 960.0,  "y": 200.0 },
+          "pinValues": { "value": 20 } },
+        { "id": 8,  "type": "branch",       "position": { "x": 1200.0, "y": 0.0 } },
+        { "id": 9,  "type": "showChoices",  "position": { "x": 1440.0, "y": 0.0 },
+          "extraPins": 2,
+          "pinValues": { "option0": "Bribe the guard", "option1": "Walk away", "fontSize": 14 } },
+        { "id": 10, "type": "showText",     "position": { "x": 1680.0, "y": -120.0 },
+          "pinValues": { "textIn": "Twenty gold changes hands. The gate swings open.", "fontSize": 18 } },
+        { "id": 11, "type": "showText",     "position": { "x": 1680.0, "y": 120.0 },
+          "pinValues": { "textIn": "You turn back towards the village, purse still heavy.", "fontSize": 18 } },
+        { "id": 12, "type": "showText",     "position": { "x": 1440.0, "y": 320.0 },
+          "pinValues": { "textIn": "The guard counts your coins and laughs. Not nearly enough.", "fontSize": 18 } },
+        { "id": 13, "type": "showText",     "position": { "x": 960.0,  "y": 440.0 },
+          "pinValues": { "textIn": "You have no money at all.", "fontSize": 18 } }
+      ],
+      "connections": [
+        { "from": 1, "fromPin": "out",      "to": 2,  "toPin": "in" },
+        { "from": 2, "fromPin": "out",      "to": 3,  "toPin": "in" },
+        { "from": 4, "fromPin": "value",    "to": 3,  "toPin": "value" },
+        { "from": 3, "fromPin": "out",      "to": 5,  "toPin": "in" },
+        { "from": 5, "fromPin": "out",      "to": 6,  "toPin": "in" },
+        { "from": 5, "fromPin": "notFound", "to": 13, "toPin": "in" },
+        { "from": 5, "fromPin": "value",    "to": 6,  "toPin": "left" },
+        { "from": 7, "fromPin": "value",    "to": 6,  "toPin": "right" },
+        { "from": 6, "fromPin": "out",      "to": 8,  "toPin": "in" },
+        { "from": 6, "fromPin": "result",   "to": 8,  "toPin": "condition" },
+        { "from": 8, "fromPin": "true",     "to": 9,  "toPin": "in" },
+        { "from": 8, "fromPin": "false",    "to": 12, "toPin": "in" },
+        { "from": 9, "fromPin": "chosen0",  "to": 10, "toPin": "in" },
+        { "from": 9, "fromPin": "chosen1",  "to": 11, "toPin": "in" }
+      ]
+    }
+  ]
+}

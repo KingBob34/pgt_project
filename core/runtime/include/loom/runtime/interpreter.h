@@ -62,6 +62,10 @@ namespace loom
         void resume();            // the player clicked to carry on
         void choose(int index);   // the player picked option index
 
+        // Pushes the pending prompt at the host again, after a restore.
+        void replay();
+
+
         bool finished() const;
         bool waiting() const;
 

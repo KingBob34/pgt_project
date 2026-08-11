@@ -29,9 +29,9 @@ namespace loom
     Value defaultColor()
     {
         Value color = Value::object();
-        color["r"] = 1.0;
-        color["g"] = 1.0;
-        color["b"] = 1.0;
+        color["r"] = 0.0;
+        color["g"] = 0.0;
+        color["b"] = 0.0;
         color["a"] = 1.0;
         return color;
     }
