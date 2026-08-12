@@ -3,7 +3,7 @@
 #include <random>
 
 //==============================================================================
-//  Random Integer                                           Logic & Maths
+//  Random Integer                                                    Values
 //------------------------------------------------------------------------------
 //  Picks a whole number between Min and Max, both included. A Min above the
 //  Max is the author's slip, so it is reported rather than quietly corrected.
@@ -27,7 +27,7 @@ namespace loom
         public:
             std::string name()        const override { return "randomInteger"; }
             std::string displayName() const override { return "Random Integer"; }
-            std::string category()    const override { return "Logic & Maths"; }
+            std::string category()    const override { return "Values"; }
 
             std::vector<PinSpec> pins(int) const override
             {
