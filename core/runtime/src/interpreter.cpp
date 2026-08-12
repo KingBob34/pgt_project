@@ -123,7 +123,12 @@ namespace loom
     bool Interpreter::enter(const std::string& graphName)
     {
         const Graph* graph = project.findGraph(graphName);
-        if (graph == nullptr) return false;
+
+        if (graph == nullptr)
+        {
+            report("there is no scene called '" + graphName + "'");
+            return false;
+        }
 
         for (const NodeInstance& node : graph->nodes)
         {
@@ -135,7 +140,17 @@ namespace loom
             }
         }
 
+        report("the scene '" + graphName + "' has no entry point");
+
         return false;
+    }
+
+    void Interpreter::report(const std::string& detail) const
+    {
+        Value details = Value::object();
+        details["detail"] = detail;
+
+        host.command("error", details);
     }
 
     bool Interpreter::advance(const std::string& pin)

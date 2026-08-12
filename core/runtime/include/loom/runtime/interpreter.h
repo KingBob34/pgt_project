@@ -75,6 +75,9 @@ namespace loom
 
     private:
         bool enter(const std::string& graphName);
+
+        // A fault the engine itself found, as opposed to one a node reports.
+        void report(const std::string& detail) const;
         bool advance(const std::string& pin);
         void run();
 
