@@ -5,6 +5,8 @@
 #include <QJsonDocument>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QHBoxLayout>
+#include <QPushButton>
 
 #include "node_geometry.h"
 #include "pin_editor.h"
@@ -17,6 +19,40 @@ namespace
     QString toQt(const std::string& text)
     {
         return QString::fromStdString(text);
+    }
+    std::vector<loom::PinSpec> onSide(const std::vector<loom::PinSpec>& pins,
+                                  loom::PinDirection direction)
+    {
+        std::vector<loom::PinSpec> out;
+
+        for (const loom::PinSpec& pin : pins)
+        {
+            if (pin.direction == direction) out.push_back(pin);
+        }
+
+        return out;
+    }
+
+    // Variadic pins are one unbroken run, so what changed between two pin lists
+    // is whatever is left after matching names in from both ends.
+    void changedRange(const std::vector<loom::PinSpec>& before,
+                      const std::vector<loom::PinSpec>& after,
+                      unsigned int& first, unsigned int& span)
+    {
+        const std::size_t shorter = std::min(before.size(), after.size());
+
+        std::size_t head = 0;
+        while (head < shorter && before[head].name == after[head].name) ++head;
+
+        std::size_t tail = 0;
+        while (tail < shorter - head &&
+               before[before.size() - 1 - tail].name == after[after.size() - 1 - tail].name)
+        {
+            ++tail;
+        }
+
+        first = static_cast<unsigned int>(head);
+        span  = static_cast<unsigned int>(std::max(before.size(), after.size()) - head - tail);
     }
 }
 
@@ -78,6 +114,54 @@ void NodeAdaptor::setInstance(const loom::NodeInstance& instance)
     data.pinValues = instance.pinValues;
 
     refreshPins();
+
+    Q_EMIT requestNodeUpdate();
+}
+
+void NodeAdaptor::setExtraPins(int count)
+{
+    const int wanted = std::max(type.minExtraPins(), std::min(count, type.maxExtraPins()));
+
+    if (wanted == data.extraPins) return;
+
+    const std::vector<loom::PinSpec> pins = type.pins(wanted);
+    const bool shrinking = wanted < data.extraPins;
+
+    unsigned int first = 0;
+    unsigned int span  = 0;
+
+    // Outputs only come and go at the end, so all they need is for a removed
+    // pin's wire to be let go of while the pin is still there.
+    if (shrinking)
+    {
+        changedRange(outputs, onSide(pins, loom::PinDirection::Output), first, span);
+
+        Q_EMIT portsAboutToBeDeleted(QtNodes::PortType::Out, first, first + span - 1);
+        Q_EMIT portsDeleted();
+    }
+
+    changedRange(inputs, onSide(pins, loom::PinDirection::Input), first, span);
+
+    if (shrinking)
+    {
+        // A pin the author took away takes its value with it.
+        for (unsigned int index = first; index < first + span; ++index)
+        {
+            data.pinValues.erase(inputs[index].name);
+        }
+
+        Q_EMIT portsAboutToBeDeleted(QtNodes::PortType::In, first, first + span - 1);
+    }
+    else
+    {
+        Q_EMIT portsAboutToBeInserted(QtNodes::PortType::In, first, first + span - 1);
+    }
+
+    data.extraPins = wanted;
+    refreshPins();
+
+    if (shrinking) Q_EMIT portsDeleted();
+    else           Q_EMIT portsInserted();
 
     Q_EMIT requestNodeUpdate();
 }
@@ -201,12 +285,20 @@ void NodeAdaptor::rebuildEditors()
 
     while (QLayoutItem* item = column->takeAt(0))
     {
-        delete item->widget();
+        // Deferred, because one of these may be the button that asked for it.
+        if (QWidget* widget = item->widget())
+        {
+            widget->setParent(nullptr);
+            widget->deleteLater();
+        }
+
         delete item;
     }
 
     // A value node has no flow pins, so its constant is the output pin itself.
     const std::vector<loom::PinSpec>& pins = constant ? outputs : inputs;
+
+    std::size_t rows = 0;
 
     for (const loom::PinSpec& pin : pins)
     {
@@ -229,15 +321,51 @@ void NodeAdaptor::rebuildEditors()
 
         editor->setFixedHeight(portRowHeight());
         column->addWidget(editor);
+
+        ++rows;
+    }
+
+    if (type.maxExtraPins() > type.minExtraPins())
+    {
+        column->addWidget(buildPinButtons());
+        ++rows;
     }
 
     column->addStretch();
 
-    // Matching the height QtNodes reserves for the ports puts the rows on the
-    // ports; anything else and the node grows to fit the widget instead.
-    const std::size_t rows = std::max(inputs.size(), outputs.size());
+    // No shorter than the ports, or the node centres the widget and the rows
+    // stop lining up.
+    rows = std::max(rows, std::max(inputs.size(), outputs.size()));
 
     body->setFixedHeight(static_cast<int>(rows) * portRowHeight());
+}
+
+QWidget* NodeAdaptor::buildPinButtons()
+{
+    QWidget* row = new QWidget;
+    row->setFixedHeight(portRowHeight());
+
+    QHBoxLayout* line = new QHBoxLayout(row);
+    line->setContentsMargins(0, 0, 0, 0);
+    line->setSpacing(4);
+
+    QPushButton* fewer = new QPushButton("-");
+    QPushButton* more  = new QPushButton("+");
+
+    fewer->setFixedWidth(24);
+    more->setFixedWidth(24);
+
+    fewer->setEnabled(data.extraPins > type.minExtraPins());
+    more->setEnabled(data.extraPins < type.maxExtraPins());
+
+    connect(fewer, &QPushButton::clicked, this, [this] { setExtraPins(data.extraPins - 1); });
+    connect(more,  &QPushButton::clicked, this, [this] { setExtraPins(data.extraPins + 1); });
+
+    line->addStretch();
+    line->addWidget(fewer);
+    line->addWidget(more);
+
+    return row;
 }
 
 loom::Value NodeAdaptor::pinValue(const loom::PinSpec& pin) const

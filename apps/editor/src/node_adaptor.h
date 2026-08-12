@@ -52,16 +52,20 @@ public:
     std::string        pinName  (QtNodes::PortType portType, QtNodes::PortIndex index) const;
     QtNodes::PortIndex portIndex(QtNodes::PortType portType, const std::string& pin) const;
 
+    // The author's control over a variadic node's pin count.
+    void setExtraPins(int count);
+
 public Q_SLOTS:
     void inputConnectionCreated(const QtNodes::ConnectionId& connection) override;
     void inputConnectionDeleted(const QtNodes::ConnectionId& connection) override;
 
 private:
     const loom::PinSpec* pinAt(QtNodes::PortType portType, QtNodes::PortIndex index) const;
-    void                 refreshPins();
-    void                 rebuildEditors();
-    void                 setWired(const std::string& pin, bool on);
-    loom::Value          pinValue(const loom::PinSpec& pin) const;
+    void refreshPins();
+    void rebuildEditors();
+    QWidget* buildPinButtons();
+    void setWired(const std::string& pin, bool on);
+    loom::Value pinValue(const loom::PinSpec& pin) const;
 
     const loom::NodeType& type;
     loom::NodeInstance    data;
