@@ -1,11 +1,12 @@
 #include "pin_editor.h"
 
+#include <map>
+#include <string>
+
+#include <QAbstractSpinBox>
 #include <QCheckBox>
-#include <QColor>
-#include <QColorDialog>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
-#include <QPushButton>
 #include <QSpinBox>
 
 #include "loom/value/inspect.h"
@@ -15,45 +16,14 @@ namespace
     constexpr int    kIntLimit   = 1000000000;
     constexpr double kFloatLimit = 1e9;
 
-    double component(const loom::Value& color, const std::string& key)
+    // The port caption sits beside the editor, so an editor is only as wide as
+    // the value it holds.
+    constexpr int kNumberWidth = 88;
+    constexpr int kTextWidth   = 140;
+
+    QWidget* makeBool(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
-        const loom::Value* found = loom::objectGet(color, key);
-        if (found == nullptr) return 0.0;
-
-        // Components run from 0.0 to 1.0, and JSON drops a zero fraction.
-        if (loom::isInt(*found))   return static_cast<double>(loom::asInt(*found));
-        if (loom::isFloat(*found)) return loom::asFloat(*found);
-
-        return 0.0;
-    }
-
-    QColor toQColor(const loom::Value& color)
-    {
-        QColor out;
-        out.setRgbF(component(color, "r"), component(color, "g"),
-                    component(color, "b"), component(color, "a"));
-
-        return out;
-    }
-
-    loom::Value fromQColor(const QColor& color)
-    {
-        loom::Value out = loom::Value::object();
-        out["r"] = color.redF();
-        out["g"] = color.greenF();
-        out["b"] = color.blueF();
-        out["a"] = color.alphaF();
-
-        return out;
-    }
-}
-
-QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value,
-                       std::function<void(loom::Value)> changed)
-{
-    if (pin.type == loom::PinType::Bool)
-    {
-        QCheckBox* box = new QCheckBox(QString::fromStdString(pin.label));
+        QCheckBox* box = new QCheckBox;
         box->setChecked(loom::asBool(value));
 
         QObject::connect(box, &QCheckBox::toggled, [changed](bool on) { changed(on); });
@@ -61,9 +31,10 @@ QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value,
         return box;
     }
 
-    if (pin.type == loom::PinType::Int)
+    QWidget* makeInt(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
         QSpinBox* box = new QSpinBox;
+        box->setFixedWidth(kNumberWidth);
         box->setRange(-kIntLimit, kIntLimit);
         box->setValue(static_cast<int>(loom::asInt(value)));
 
@@ -72,9 +43,11 @@ QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value,
         return box;
     }
 
-    if (pin.type == loom::PinType::Float)
+    QWidget* makeFloat(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
         QDoubleSpinBox* box = new QDoubleSpinBox;
+        box->setFixedWidth(kNumberWidth);
+        box->setButtonSymbols(QAbstractSpinBox::NoButtons);
         box->setRange(-kFloatLimit, kFloatLimit);
         box->setDecimals(3);
         box->setValue(loom::asFloat(value));
@@ -85,9 +58,10 @@ QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value,
         return box;
     }
 
-    if (pin.type == loom::PinType::String)
+    QWidget* makeString(const loom::PinSpec& pin, const loom::Value& value, const PinChanged& changed)
     {
         QLineEdit* field = new QLineEdit(QString::fromStdString(loom::asString(value)));
+        field->setFixedWidth(kTextWidth);
         field->setPlaceholderText(QString::fromStdString(pin.label));
 
         QObject::connect(field, &QLineEdit::textChanged, [changed](const QString& text)
@@ -98,30 +72,28 @@ QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value,
         return field;
     }
 
-    if (pin.type == loom::PinType::Color)
+    using Factory = QWidget* (*)(const loom::PinSpec&, const loom::Value&, const PinChanged&);
+
+    // The pin types an author may type into. A type that is not listed has no
+    // editor at all and has to be fed by a wire.
+    const std::map<std::string, Factory>& editableTypes()
     {
-        QPushButton* button = new QPushButton;
-        button->setFlat(true);
+        static const std::map<std::string, Factory> table = {
+            { loom::PinType::Bool,   &makeBool   },
+            { loom::PinType::Int,    &makeInt    },
+            { loom::PinType::Float,  &makeFloat  },
+            { loom::PinType::String, &makeString },
+        };
 
-        QColor current = toQColor(value);
-        button->setStyleSheet("background-color: " + current.name(QColor::HexArgb));
-
-        QObject::connect(button, &QPushButton::clicked, [button, changed, current]() mutable
-        {
-            const QColor chosen = QColorDialog::getColor(current, button, "Pin Colour",
-                                                         QColorDialog::ShowAlphaChannel);
-            if (!chosen.isValid()) return;
-
-            current = chosen;
-            button->setStyleSheet("background-color: " + chosen.name(QColor::HexArgb));
-
-            changed(fromQColor(chosen));
-        });
-
-        return button;
+        return table;
     }
+}
 
-    // A flow pin is a wire, and an Any pin takes whatever a value node sends
-    // it, so neither has anything to type into.
-    return nullptr;
+QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed)
+{
+    const auto factory = editableTypes().find(pin.type);
+
+    if (factory == editableTypes().end()) return nullptr;
+
+    return factory->second(pin, value, changed);
 }

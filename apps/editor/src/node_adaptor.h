@@ -68,6 +68,7 @@ private:
 
     std::vector<loom::PinSpec> inputs;
     std::vector<loom::PinSpec> outputs;
+    bool                       constant = false;
 
     QPointer<QWidget>               body;
     std::map<std::string, QWidget*> editors;

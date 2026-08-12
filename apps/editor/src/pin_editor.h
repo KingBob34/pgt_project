@@ -7,9 +7,10 @@
 
 class QWidget;
 
-// An editor for one data input pin, or nullptr for a pin type that has none.
-// The callback carries the pin's new value.
-QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value,
-                       std::function<void(loom::Value)> changed);
+// Carries a pin's new value out of its editor.
+using PinChanged = std::function<void(loom::Value)>;
+
+// An editor for one pin, or nullptr for a pin type that has none.
+QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed);
 
 #endif //LOOM_EDITOR_PIN_EDITOR_H

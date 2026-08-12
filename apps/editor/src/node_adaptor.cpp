@@ -1,9 +1,12 @@
 #include "node_adaptor.h"
 
+#include <algorithm>
+
 #include <QJsonDocument>
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "node_geometry.h"
 #include "pin_editor.h"
 
 #include "loom/value/inspect.h"
@@ -30,9 +33,12 @@ void NodeAdaptor::refreshPins()
 {
     inputs.clear();
     outputs.clear();
+    constant = true;
 
     for (const loom::PinSpec& pin : type.pins(data.extraPins))
     {
+        if (pin.type == loom::PinType::Flow) constant = false;
+
         if (pin.direction == loom::PinDirection::Input) inputs.push_back(pin);
         else outputs.push_back(pin);
     }
@@ -177,7 +183,7 @@ QWidget* NodeAdaptor::embeddedWidget()
 
         QVBoxLayout* column = new QVBoxLayout(body);
         column->setContentsMargins(0, 0, 0, 0);
-        column->setSpacing(2);
+        column->setSpacing(0);
 
         rebuildEditors();
     }
@@ -191,7 +197,7 @@ void NodeAdaptor::rebuildEditors()
 
     editors.clear();
 
-    QLayout* column = body->layout();
+    QVBoxLayout* column = static_cast<QVBoxLayout*>(body->layout());
 
     while (QLayoutItem* item = column->takeAt(0))
     {
@@ -199,7 +205,10 @@ void NodeAdaptor::rebuildEditors()
         delete item;
     }
 
-    for (const loom::PinSpec& pin : inputs)
+    // A value node has no flow pins, so its constant is the output pin itself.
+    const std::vector<loom::PinSpec>& pins = constant ? outputs : inputs;
+
+    for (const loom::PinSpec& pin : pins)
     {
         QWidget* editor = makePinEditor(pin, pinValue(pin),
                                         [this, name = pin.name](loom::Value value)
@@ -207,13 +216,28 @@ void NodeAdaptor::rebuildEditors()
                                             data.pinValues[name] = std::move(value);
                                         });
 
-        if (editor == nullptr) continue;
+        if (editor == nullptr)
+        {
+            // A blank row, so the rows below still land on their own port.
+            editor = new QWidget;
+        }
+        else
+        {
+            editor->setEnabled(wired.count(pin.name) == 0);
+            editors[pin.name] = editor;
+        }
 
-        editor->setEnabled(wired.count(pin.name) == 0);
-
-        editors[pin.name] = editor;
+        editor->setFixedHeight(portRowHeight());
         column->addWidget(editor);
     }
+
+    column->addStretch();
+
+    // Matching the height QtNodes reserves for the ports puts the rows on the
+    // ports; anything else and the node grows to fit the widget instead.
+    const std::size_t rows = std::max(inputs.size(), outputs.size());
+
+    body->setFixedHeight(static_cast<int>(rows) * portRowHeight());
 }
 
 loom::Value NodeAdaptor::pinValue(const loom::PinSpec& pin) const

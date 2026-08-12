@@ -1,10 +1,21 @@
 #include "node_geometry.h"
 
+#include <QFont>
+#include <QFontMetrics>
+
 #include <QtNodes/AbstractGraphModel>
 
 namespace
 {
-    constexpr int kMinimumWidth = 160;
+    constexpr int kMinimumWidth = 120;
+
+    // DefaultHorizontalNodeGeometry's own spacing, which it does not expose.
+    constexpr int kPortSpacing = 10;
+}
+
+int portRowHeight()
+{
+    return QFontMetrics(QFont()).height() + kPortSpacing;
 }
 
 void NodeGeometry::recomputeSize(QtNodes::NodeId nodeId) const
