@@ -2,6 +2,7 @@
 #define LOOM_EDITOR_EDITOR_WINDOW_H
 #include <cstddef>
 #include <memory>
+#include <string>
 
 #include <QMainWindow>
 #include <QString>
@@ -17,6 +18,7 @@ class GraphModel;
 class GraphScene;
 class GraphView;
 class QListWidget;
+class QListWidgetItem;
 
 class EditorWindow : public QMainWindow
 {
@@ -32,6 +34,7 @@ private:
     void buildMenus();
     void buildCanvas();
     void buildConsole();
+    void buildScenes();
 
     void newStory();
     void chooseStory();
@@ -43,6 +46,16 @@ private:
     void log(const QString& text, bool fault = false);
     void report(const loom::Diagnostics& diagnostics);
 
+    void refreshScenes();
+    void showScene(const loom::Graph& graph);
+    void switchScene(int index);
+    void addScene();
+    void removeScene();
+    void renameScene(QListWidgetItem* item);
+
+    std::string uniqueSceneName(const std::string& wanted) const;
+    void reportSceneReferences(const std::string& name);
+
     loom::NodeCatalog catalog;
 
     std::shared_ptr<QtNodes::NodeDelegateModelRegistry> registry;
@@ -53,6 +66,11 @@ private:
     GraphView*  view  = nullptr;
 
     QListWidget* console = nullptr;
+    QListWidget* scenes = nullptr;
+
+    // Set while the scene list is being refilled, so its own signals do not
+    // read back as the author clicking about.
+    bool rebuilding = false;
 
     loom::Project project;
     std::size_t   editing = 0;

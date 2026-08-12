@@ -8,6 +8,12 @@
 #include <QKeySequence>
 #include <QListWidget>
 #include <QMenuBar>
+#include <QAbstractItemView>
+#include <QFont>
+#include <QHBoxLayout>
+#include <QMenu>
+#include <QPushButton>
+#include <QVBoxLayout>
 
 #include "graph_document.h"
 #include "graph_model.h"
@@ -32,6 +38,7 @@ EditorWindow::EditorWindow()
     buildCanvas();
     buildMenus();
     buildConsole();
+    buildScenes();
 
     newStory();
 }
@@ -80,6 +87,18 @@ void EditorWindow::buildMenus()
 
     QAction* quit = file->addAction("&Quit", this, &QWidget::close);
     quit->setShortcut(QKeySequence::Quit);
+
+
+    QMenu* edit = menuBar()->addMenu("&Edit");
+
+    QAction* undo = scene->undoStack().createUndoAction(this, "&Undo");
+    undo->setShortcut(QKeySequence::Undo);
+
+    QAction* redo = scene->undoStack().createRedoAction(this, "&Redo");
+    redo->setShortcut(QKeySequence::Redo);
+
+    edit->addAction(undo);
+    edit->addAction(redo);
 }
 
 void EditorWindow::buildConsole()
@@ -91,6 +110,215 @@ void EditorWindow::buildConsole()
     dock->setWidget(console);
 
     addDockWidget(Qt::BottomDockWidgetArea, dock);
+}
+
+void EditorWindow::buildScenes()
+{
+    scenes = new QListWidget;
+    scenes->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+    scenes->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    connect(scenes, &QListWidget::currentRowChanged, this, &EditorWindow::switchScene);
+    connect(scenes, &QListWidget::itemChanged, this, &EditorWindow::renameScene);
+
+    connect(scenes, &QListWidget::customContextMenuRequested, this, [this](const QPoint& at)
+    {
+        QListWidgetItem* item = scenes->itemAt(at);
+        if (item == nullptr) return;
+
+        QMenu menu;
+        QAction* start = menu.addAction("Start Here");
+
+        if (menu.exec(scenes->mapToGlobal(at)) != start) return;
+
+        project.entry = project.graphs[scenes->row(item)].name;
+        refreshScenes();
+    });
+
+    QPushButton* add = new QPushButton("+");
+    QPushButton* remove = new QPushButton("-");
+
+    add->setFixedWidth(28);
+    remove->setFixedWidth(28);
+
+    connect(add, &QPushButton::clicked, this, &EditorWindow::addScene);
+    connect(remove, &QPushButton::clicked, this, &EditorWindow::removeScene);
+
+    QHBoxLayout* buttons = new QHBoxLayout;
+    buttons->setContentsMargins(0, 0, 0, 0);
+    buttons->addWidget(add);
+    buttons->addWidget(remove);
+    buttons->addStretch();
+
+    QWidget* panel = new QWidget;
+
+    QVBoxLayout* column = new QVBoxLayout(panel);
+    column->setContentsMargins(4, 4, 4, 4);
+    column->addWidget(scenes, 1);
+    column->addLayout(buttons);
+
+    QDockWidget* dock = new QDockWidget("Scenes", this);
+    dock->setWidget(panel);
+
+    addDockWidget(Qt::LeftDockWidgetArea, dock);
+}
+
+void EditorWindow::refreshScenes()
+{
+    rebuilding = true;
+
+    scenes->clear();
+
+    for (const loom::Graph& graph : project.graphs)
+    {
+        QListWidgetItem* item = new QListWidgetItem(QString::fromStdString(graph.name), scenes);
+        item->setFlags(item->flags() | Qt::ItemIsEditable);
+
+        if (graph.name == project.entry)
+        {
+            QFont bold = item->font();
+            bold.setBold(true);
+
+            item->setFont(bold);
+        }
+    }
+
+    scenes->setCurrentRow(static_cast<int>(editing));
+
+    rebuilding = false;
+}
+
+void EditorWindow::showScene(const loom::Graph& graph)
+{
+    // Nothing is painted while the canvas empties and refills, or the part
+    // built so far is drawn over whatever the viewport happened to hold.
+    view->setUpdatesEnabled(false);
+
+    document->open(graph);
+
+    view->setUpdatesEnabled(true);
+
+    scene->undoStack().clear();
+}
+
+void EditorWindow::switchScene(int index)
+{
+    if (rebuilding || index < 0) return;
+
+    const std::size_t wanted = static_cast<std::size_t>(index);
+
+    if (wanted == editing || wanted >= project.graphs.size()) return;
+
+    project.graphs[editing] = document->graph();
+
+    editing = wanted;
+
+    showScene(project.graphs[editing]);
+}
+
+void EditorWindow::addScene()
+{
+    project.graphs[editing] = document->graph();
+
+    loom::Graph fresh;
+    fresh.name = uniqueSceneName("scene");
+    fresh.meta = project.meta;
+
+    project.graphs.push_back(fresh);
+
+    editing = project.graphs.size() - 1;
+
+    document->reset();
+    document->setName(fresh.name);
+
+    scene->undoStack().clear();
+
+    refreshScenes();
+}
+
+void EditorWindow::removeScene()
+{
+    if (project.graphs.size() < 2)
+    {
+        log("A story needs at least one scene.", true);
+        return;
+    }
+
+    const std::string gone = project.graphs[editing].name;
+
+    project.graphs.erase(project.graphs.begin() + static_cast<std::ptrdiff_t>(editing));
+
+    if (editing >= project.graphs.size()) editing = project.graphs.size() - 1;
+
+    if (project.findGraph(project.entry) == nullptr) project.entry = project.graphs.front().name;
+
+    showScene(project.graphs[editing]);
+
+    refreshScenes();
+
+    log("Removed the scene '" + QString::fromStdString(gone) + "'");
+
+    reportSceneReferences(gone);
+}
+
+void EditorWindow::renameScene(QListWidgetItem* item)
+{
+    if (rebuilding || item == nullptr) return;
+
+    const std::size_t index = static_cast<std::size_t>(scenes->row(item));
+
+    if (index >= project.graphs.size()) return;
+
+    const std::string was = project.graphs[index].name;
+    const std::string typed = item->text().toStdString();
+
+    if (typed == was) return;
+
+    const std::string now = uniqueSceneName(typed);
+
+    project.graphs[index].name = now;
+
+    if (project.entry == was) project.entry = now;
+    if (index == editing) document->setName(now);
+
+    refreshScenes();
+
+    project.graphs[editing] = document->graph();
+
+    reportSceneReferences(was);
+}
+
+std::string EditorWindow::uniqueSceneName(const std::string& wanted) const
+{
+    const std::string base = wanted.empty() ? "scene" : wanted;
+
+    std::string name = base;
+
+    for (int suffix = 2; project.findGraph(name) != nullptr; ++suffix)
+    {
+        name = base + std::to_string(suffix);
+    }
+
+    return name;
+}
+
+void EditorWindow::reportSceneReferences(const std::string& name)
+{
+    for (const loom::Graph& graph : project.graphs)
+    {
+        for (const loom::NodeInstance& node : graph.nodes)
+        {
+            for (const auto& stored : node.pinValues)
+            {
+                if (!loom::isString(stored.second)) continue;
+                if (loom::asString(stored.second) != name) continue;
+
+                log("Warning in scene '" + QString::fromStdString(graph.name) + "' at node " +
+                    QString::number(node.id) + ", pin " + QString::fromStdString(stored.first) +
+                    ": still names the scene '" + QString::fromStdString(name) + "'");
+            }
+        }
+    }
 }
 
 void EditorWindow::log(const QString& text, bool fault)
@@ -122,7 +350,11 @@ void EditorWindow::newStory()
 
     project = loom::Project();
     project.entry = document->name();
-    project.graphs.emplace_back();
+
+    loom::Graph first;
+    first.name = document->name();
+
+    project.graphs.push_back(first);
 
     editing = 0;
 
@@ -130,6 +362,7 @@ void EditorWindow::newStory()
     console->clear();
 
     setStoryPath(QString());
+    refreshScenes();
 }
 
 void EditorWindow::chooseStory()
@@ -193,11 +426,10 @@ void EditorWindow::openStory(const QString& path)
         if (project.graphs[index].name == project.entry) editing = index;
     }
 
-    document->open(project.graphs[editing]);
-
-    scene->undoStack().clear();
+    showScene(project.graphs[editing]);
 
     setStoryPath(path);
+    refreshScenes();
 
     report(diagnostics);
     log("Opened " + path);

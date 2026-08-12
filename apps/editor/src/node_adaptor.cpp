@@ -286,9 +286,10 @@ void NodeAdaptor::rebuildEditors()
     while (QLayoutItem* item = column->takeAt(0))
     {
         // Deferred, because one of these may be the button that asked for it.
+        // The parent stays put: a widget without one is a window of its own.
         if (QWidget* widget = item->widget())
         {
-            widget->setParent(nullptr);
+            widget->hide();
             widget->deleteLater();
         }
 
