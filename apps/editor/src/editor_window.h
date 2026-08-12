@@ -16,6 +16,7 @@ class GraphDocument;
 class GraphModel;
 class GraphScene;
 class GraphView;
+class QListWidget;
 
 class EditorWindow : public QMainWindow
 {
@@ -30,6 +31,7 @@ public:
 private:
     void buildMenus();
     void buildCanvas();
+    void buildConsole();
 
     void newStory();
     void chooseStory();
@@ -38,7 +40,8 @@ private:
     bool writeStory(const QString& path);
 
     void setStoryPath(const QString& path);
-    void showDiagnostics(const loom::Diagnostics& diagnostics, const QString& heading);
+    void log(const QString& text, bool fault = false);
+    void report(const loom::Diagnostics& diagnostics);
 
     loom::NodeCatalog catalog;
 
@@ -48,6 +51,8 @@ private:
 
     GraphScene* scene = nullptr;
     GraphView*  view  = nullptr;
+
+    QListWidget* console = nullptr;
 
     loom::Project project;
     std::size_t   editing = 0;

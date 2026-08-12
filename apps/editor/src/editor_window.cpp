@@ -1,13 +1,13 @@
 #include "editor_window.h"
 
 #include <QAction>
+#include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QKeySequence>
+#include <QListWidget>
 #include <QMenuBar>
-#include <QMessageBox>
-#include <QStringList>
 
 #include "graph_document.h"
 #include "graph_model.h"
@@ -31,6 +31,7 @@ EditorWindow::EditorWindow()
 
     buildCanvas();
     buildMenus();
+    buildConsole();
 
     newStory();
 }
@@ -81,6 +82,40 @@ void EditorWindow::buildMenus()
     quit->setShortcut(QKeySequence::Quit);
 }
 
+void EditorWindow::buildConsole()
+{
+    console = new QListWidget;
+    console->setMinimumHeight(140);
+
+    QDockWidget* dock = new QDockWidget("Console", this);
+    dock->setWidget(console);
+
+    addDockWidget(Qt::BottomDockWidgetArea, dock);
+}
+
+void EditorWindow::log(const QString& text, bool fault)
+{
+    QListWidgetItem* line = new QListWidgetItem(text, console);
+    if (fault) line->setForeground(Qt::red);
+
+    console->scrollToBottom();
+}
+
+void EditorWindow::report(const loom::Diagnostics& diagnostics)
+{
+    for (const loom::Diagnostic& entry : diagnostics.all())
+    {
+        const bool fault = entry.severity == loom::Severity::Error;
+
+        QString line = fault ? "Error" : "Warning";
+
+        if (entry.node != 0)    line += " at node " + QString::number(entry.node);
+        if (!entry.pin.empty()) line += ", pin " + QString::fromStdString(entry.pin);
+
+        log(line + ": " + QString::fromStdString(entry.message), fault);
+    }
+}
+
 void EditorWindow::newStory()
 {
     document->reset();
@@ -92,6 +127,7 @@ void EditorWindow::newStory()
     editing = 0;
 
     scene->undoStack().clear();
+    console->clear();
 
     setStoryPath(QString());
 }
@@ -110,7 +146,7 @@ void EditorWindow::openStory(const QString& path)
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        QMessageBox::warning(this, "Loom Editor", "Cannot read " + path);
+        log("Cannot read " + path, true);
         return;
     }
 
@@ -119,7 +155,7 @@ void EditorWindow::openStory(const QString& path)
 
     if (!loom::parseJson(file.readAll().toStdString(), parsed, error))
     {
-        QMessageBox::warning(this, "Loom Editor", QString::fromStdString(error));
+        log(QString::fromStdString(error), true);
         return;
     }
 
@@ -144,7 +180,8 @@ void EditorWindow::openStory(const QString& path)
 
     if (!read || diagnostics.hasErrors() || opened.graphs.empty())
     {
-        showDiagnostics(diagnostics, "This story was not opened.");
+        report(diagnostics);
+        log("This story was not opened.", true);
         return;
     }
 
@@ -162,7 +199,8 @@ void EditorWindow::openStory(const QString& path)
 
     setStoryPath(path);
 
-    if (!diagnostics.all().empty()) showDiagnostics(diagnostics, "The story was opened.");
+    report(diagnostics);
+    log("Opened " + path);
 }
 
 bool EditorWindow::saveStory()
@@ -186,7 +224,7 @@ bool EditorWindow::writeStory(const QString& path)
 
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
-        QMessageBox::warning(this, "Loom Editor", "Cannot write " + path);
+        log("Cannot write " + path, true);
         return false;
     }
 
@@ -199,7 +237,8 @@ bool EditorWindow::writeStory(const QString& path)
     loom::Diagnostics diagnostics;
     loom::validate(project, catalog, diagnostics);
 
-    if (!diagnostics.all().empty()) showDiagnostics(diagnostics, "The story was saved.");
+    report(diagnostics);
+    log("Saved " + path);
 
     return true;
 }
@@ -213,27 +252,3 @@ void EditorWindow::setStoryPath(const QString& path)
     setWindowTitle(shown + " - Loom Editor");
 }
 
-void EditorWindow::showDiagnostics(const loom::Diagnostics& diagnostics, const QString& heading)
-{
-    QStringList lines;
-
-    for (const loom::Diagnostic& entry : diagnostics.all())
-    {
-        QString line = entry.severity == loom::Severity::Error ? "Error" : "Warning";
-
-        if (entry.node != 0)    line += " at node " + QString::number(entry.node);
-        if (!entry.pin.empty()) line += ", pin " + QString::fromStdString(entry.pin);
-
-        lines << line + ": " + QString::fromStdString(entry.message);
-    }
-
-    if (lines.isEmpty()) lines << "The file could not be read at all.";
-
-    QMessageBox box(this);
-    box.setWindowTitle("Loom Editor");
-    box.setIcon(diagnostics.hasErrors() ? QMessageBox::Warning : QMessageBox::Information);
-    box.setText(heading);
-    box.setInformativeText(QString::number(lines.size()) + " reported. Open Details for the list.");
-    box.setDetailedText(lines.join('\n'));
-    box.exec();
-}
