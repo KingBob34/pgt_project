@@ -26,6 +26,7 @@ add_executable(loom_editor WIN32
         src/rubber_band_style.cpp
         src/node_geometry.cpp
         src/graph_document.cpp
+        src/pin_editor.cpp
 )
 
 target_link_libraries(loom_editor PRIVATE

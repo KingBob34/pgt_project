@@ -1,7 +1,12 @@
 #ifndef LOOM_EDITOR_NODE_ADAPTOR_H
 #define LOOM_EDITOR_NODE_ADAPTOR_H
+#include <map>
 #include <memory>
+#include <set>
+#include <string>
 #include <vector>
+
+#include <QPointer>
 
 #include <QtNodes/NodeDelegateModel>
 #include <QtNodes/NodeDelegateModelRegistry>
@@ -28,7 +33,7 @@ public:
     QtNodes::ConnectionPolicy portConnectionPolicy(QtNodes::PortType portType,
                                                    QtNodes::PortIndex index) const override;
 
-    QWidget* embeddedWidget() override { return nullptr; }
+    QWidget* embeddedWidget() override;
 
     // Unused: values travel through the engine, not through QtNodes.
     void setInData(std::shared_ptr<QtNodes::NodeData>, QtNodes::PortIndex) override {}
@@ -47,15 +52,26 @@ public:
     std::string        pinName  (QtNodes::PortType portType, QtNodes::PortIndex index) const;
     QtNodes::PortIndex portIndex(QtNodes::PortType portType, const std::string& pin) const;
 
+public Q_SLOTS:
+    void inputConnectionCreated(const QtNodes::ConnectionId& connection) override;
+    void inputConnectionDeleted(const QtNodes::ConnectionId& connection) override;
+
 private:
     const loom::PinSpec* pinAt(QtNodes::PortType portType, QtNodes::PortIndex index) const;
     void                 refreshPins();
+    void                 rebuildEditors();
+    void                 setWired(const std::string& pin, bool on);
+    loom::Value          pinValue(const loom::PinSpec& pin) const;
 
     const loom::NodeType& type;
     loom::NodeInstance    data;
 
     std::vector<loom::PinSpec> inputs;
     std::vector<loom::PinSpec> outputs;
+
+    QPointer<QWidget>               body;
+    std::map<std::string, QWidget*> editors;
+    std::set<std::string>           wired;
 };
 
 // One registry entry per node type, grouped by the category the node declares.

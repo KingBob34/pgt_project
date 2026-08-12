@@ -1,6 +1,10 @@
 #include "node_adaptor.h"
 
 #include <QJsonDocument>
+#include <QVBoxLayout>
+#include <QWidget>
+
+#include "pin_editor.h"
 
 #include "loom/value/inspect.h"
 #include "loom/value/parse.h"
@@ -32,6 +36,8 @@ void NodeAdaptor::refreshPins()
         if (pin.direction == loom::PinDirection::Input) inputs.push_back(pin);
         else outputs.push_back(pin);
     }
+
+    rebuildEditors();
 }
 
 QString NodeAdaptor::name() const
@@ -160,6 +166,80 @@ void NodeAdaptor::load(const QJsonObject& document)
 
     refreshPins();
     Q_EMIT requestNodeUpdate();
+}
+
+QWidget* NodeAdaptor::embeddedWidget()
+{
+    if (body.isNull())
+    {
+        body = new QWidget;
+        body->setAttribute(Qt::WA_TranslucentBackground);
+
+        QVBoxLayout* column = new QVBoxLayout(body);
+        column->setContentsMargins(0, 0, 0, 0);
+        column->setSpacing(2);
+
+        rebuildEditors();
+    }
+
+    return body;
+}
+
+void NodeAdaptor::rebuildEditors()
+{
+    if (body.isNull()) return;
+
+    editors.clear();
+
+    QLayout* column = body->layout();
+
+    while (QLayoutItem* item = column->takeAt(0))
+    {
+        delete item->widget();
+        delete item;
+    }
+
+    for (const loom::PinSpec& pin : inputs)
+    {
+        QWidget* editor = makePinEditor(pin, pinValue(pin),
+                                        [this, name = pin.name](loom::Value value)
+                                        {
+                                            data.pinValues[name] = std::move(value);
+                                        });
+
+        if (editor == nullptr) continue;
+
+        editor->setEnabled(wired.count(pin.name) == 0);
+
+        editors[pin.name] = editor;
+        column->addWidget(editor);
+    }
+}
+
+loom::Value NodeAdaptor::pinValue(const loom::PinSpec& pin) const
+{
+    const auto stored = data.pinValues.find(pin.name);
+
+    return stored == data.pinValues.end() ? pin.defaultValue : stored->second;
+}
+
+void NodeAdaptor::setWired(const std::string& pin, bool on)
+{
+    if (on) wired.insert(pin);
+    else    wired.erase(pin);
+
+    const auto editor = editors.find(pin);
+    if (editor != editors.end()) editor->second->setEnabled(!on);
+}
+
+void NodeAdaptor::inputConnectionCreated(const QtNodes::ConnectionId& connection)
+{
+    setWired(pinName(QtNodes::PortType::In, connection.inPortIndex), true);
+}
+
+void NodeAdaptor::inputConnectionDeleted(const QtNodes::ConnectionId& connection)
+{
+    setWired(pinName(QtNodes::PortType::In, connection.inPortIndex), false);
 }
 
 std::shared_ptr<QtNodes::NodeDelegateModelRegistry> makeRegistry(const loom::NodeCatalog& catalog)
