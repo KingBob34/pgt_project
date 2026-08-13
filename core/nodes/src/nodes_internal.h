@@ -15,6 +15,9 @@ namespace loom
     PinSpec dataIn (std::string name, std::string label, std::string type, Value defaultValue = Value());
     PinSpec dataOut(std::string name, std::string label, std::string type, Value defaultValue = Value());
 
+    // A String input that holds prose.
+    PinSpec longTextIn(std::string name, std::string label, Value defaultValue = Value(""));
+
     // Opaque white: the starting colour of every style pin.
     Value defaultColor();
 

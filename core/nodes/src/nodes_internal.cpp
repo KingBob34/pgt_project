@@ -26,6 +26,12 @@ namespace loom
                  std::move(type), std::move(defaultValue) };
     }
 
+    PinSpec longTextIn(std::string name, std::string label, Value defaultValue)
+    {
+        return { std::move(name), std::move(label), PinDirection::Input,
+                 PinType::String, std::move(defaultValue), true };
+    }
+
     Value defaultColor()
     {
         Value color = Value::object();

@@ -35,7 +35,7 @@ namespace loom
             std::vector<PinSpec> pins(int) const override
             {
                 return { flowIn(),
-                         dataIn("textIn", "Text", PinType::String, Value("")),
+                         longTextIn("textIn", "Text"),
                          dataIn("fontSize", "Font Size", PinType::Int, Value(16)),
                          dataIn("color", "Color", PinType::Color, defaultColor()),
                          flowOut(),

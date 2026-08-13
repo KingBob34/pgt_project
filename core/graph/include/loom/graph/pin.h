@@ -26,6 +26,7 @@ namespace loom
         PinDirection direction = PinDirection::Input;
         std::string  type = PinType::Flow;
         Value        defaultValue;   // starting in-place value of a data input
+        bool longText = false;   // holds prose rather than a single line
     };
 
     // Whether a wire may join a pin of type 'from' to a pin of type 'to'.
