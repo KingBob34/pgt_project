@@ -280,6 +280,7 @@ void NodeAdaptor::rebuildEditors()
     if (body.isNull()) return;
 
     editors.clear();
+    rowHeights.clear();
 
     QVBoxLayout* column = static_cast<QVBoxLayout*>(body->layout());
 
@@ -299,15 +300,15 @@ void NodeAdaptor::rebuildEditors()
     // A value node has no flow pins, so its constant is the output pin itself.
     const std::vector<loom::PinSpec>& pins = constant ? outputs : inputs;
 
-    std::size_t rows = 0;
-
     for (const loom::PinSpec& pin : pins)
     {
-        QWidget* editor = makePinEditor(pin, pinValue(pin),
-                                        [this, name = pin.name](loom::Value value)
-                                        {
-                                            data.pinValues[name] = std::move(value);
-                                        });
+        const PinEditor made = makePinEditor(pin, pinValue(pin),
+                                             [this, name = pin.name](loom::Value value)
+                                             {
+                                                 data.pinValues[name] = std::move(value);
+                                             });
+
+        QWidget* editor = made.widget;
 
         if (editor == nullptr)
         {
@@ -320,25 +321,56 @@ void NodeAdaptor::rebuildEditors()
             editors[pin.name] = editor;
         }
 
-        editor->setFixedHeight(portRowHeight());
+        const int height = portRowHeight() * std::max(1, made.rows);
+
+        editor->setFixedHeight(height);
         column->addWidget(editor);
 
-        ++rows;
+        rowHeights.push_back(height);
     }
+
+    int total = 0;
+    for (int height : rowHeights) total += height;
 
     if (type.maxExtraPins() > type.minExtraPins())
     {
         column->addWidget(buildPinButtons());
-        ++rows;
+        total += portRowHeight();
     }
 
     column->addStretch();
 
-    // No shorter than the ports, or the node centres the widget and the rows
-    // stop lining up.
-    rows = std::max(rows, std::max(inputs.size(), outputs.size()));
+    // No shorter than the other side's ports, or the node centres the widget
+    // and the rows stop lining up.
+    const std::size_t others = constant ? inputs.size() : outputs.size();
 
-    body->setFixedHeight(static_cast<int>(rows) * portRowHeight());
+    body->setFixedHeight(std::max(total, static_cast<int>(others) * portRowHeight()));
+}
+
+bool NodeAdaptor::edited(QtNodes::PortType portType) const
+{
+    return constant ? portType == QtNodes::PortType::Out : portType == QtNodes::PortType::In;
+}
+
+int NodeAdaptor::rowHeight(QtNodes::PortType portType, QtNodes::PortIndex index) const
+{
+    if (!edited(portType) || index >= rowHeights.size()) return portRowHeight();
+
+    return rowHeights[index];
+}
+
+int NodeAdaptor::rowTop(QtNodes::PortType portType, QtNodes::PortIndex index) const
+{
+    if (!edited(portType)) return static_cast<int>(index) * portRowHeight();
+
+    int top = 0;
+
+    for (QtNodes::PortIndex row = 0; row < index && row < rowHeights.size(); ++row)
+    {
+        top += rowHeights[row];
+    }
+
+    return top;
 }
 
 QWidget* NodeAdaptor::buildPinButtons()

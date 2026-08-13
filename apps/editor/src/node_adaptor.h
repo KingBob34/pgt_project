@@ -55,6 +55,10 @@ public:
     // The author's control over a variadic node's pin count.
     void setExtraPins(int count);
 
+    // Where a pin's row sits inside the body widget, in pixels from its top.
+    int rowTop(QtNodes::PortType portType, QtNodes::PortIndex index) const;
+    int rowHeight(QtNodes::PortType portType, QtNodes::PortIndex index) const;
+
 public Q_SLOTS:
     void inputConnectionCreated(const QtNodes::ConnectionId& connection) override;
     void inputConnectionDeleted(const QtNodes::ConnectionId& connection) override;
@@ -65,6 +69,9 @@ private:
     void rebuildEditors();
     QWidget* buildPinButtons();
     void setWired(const std::string& pin, bool on);
+
+    // The side whose pins carry the editors.
+    bool edited(QtNodes::PortType portType) const;
     loom::Value pinValue(const loom::PinSpec& pin) const;
 
     const loom::NodeType& type;
@@ -74,6 +81,7 @@ private:
     std::vector<loom::PinSpec> outputs;
     bool                       constant = false;
 
+    std::vector<int>                rowHeights;
     QPointer<QWidget>               body;
     std::map<std::string, QWidget*> editors;
     std::set<std::string>           wired;

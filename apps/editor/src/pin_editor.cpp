@@ -3,10 +3,10 @@
 #include <map>
 #include <string>
 
-#include <QAbstractSpinBox>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QSpinBox>
 
 #include "loom/value/inspect.h"
@@ -16,22 +16,24 @@ namespace
     constexpr int    kIntLimit   = 1000000000;
     constexpr double kFloatLimit = 1e9;
 
-    // The port caption sits beside the editor, so an editor is only as wide as
-    // the value it holds.
+    // An editor is only as wide as the value it holds; the caption is beside it.
     constexpr int kNumberWidth = 88;
-    constexpr int kTextWidth   = 140;
+    constexpr int kTextWidth = 140;
 
-    QWidget* makeBool(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
+    constexpr int kParagraphWidth = 240;
+    constexpr int kParagraphRows = 4;
+
+    PinEditor makeBool(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
         QCheckBox* box = new QCheckBox;
         box->setChecked(loom::asBool(value));
 
         QObject::connect(box, &QCheckBox::toggled, [changed](bool on) { changed(on); });
 
-        return box;
+        return { box, 1 };
     }
 
-    QWidget* makeInt(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
+    PinEditor makeInt(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
         QSpinBox* box = new QSpinBox;
         box->setFixedWidth(kNumberWidth);
@@ -40,10 +42,10 @@ namespace
 
         QObject::connect(box, &QSpinBox::valueChanged, [changed](int number) { changed(number); });
 
-        return box;
+        return { box, 1 };
     }
 
-    QWidget* makeFloat(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
+    PinEditor makeFloat(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
         QDoubleSpinBox* box = new QDoubleSpinBox;
         box->setFixedWidth(kNumberWidth);
@@ -55,27 +57,44 @@ namespace
         QObject::connect(box, &QDoubleSpinBox::valueChanged,
                          [changed](double number) { changed(number); });
 
-        return box;
+        return { box, 1 };
     }
 
-    QWidget* makeString(const loom::PinSpec& pin, const loom::Value& value, const PinChanged& changed)
+    PinEditor makeString(const loom::PinSpec& pin, const loom::Value& value, const PinChanged& changed)
     {
-        QLineEdit* field = new QLineEdit(QString::fromStdString(loom::asString(value)));
-        field->setFixedWidth(kTextWidth);
-        field->setPlaceholderText(QString::fromStdString(pin.label));
+        const QString text = QString::fromStdString(loom::asString(value));
+        const QString hint = QString::fromStdString(pin.label);
 
-        QObject::connect(field, &QLineEdit::textChanged, [changed](const QString& text)
+        if (pin.longText)
         {
-            changed(text.toStdString());
+            QPlainTextEdit* box = new QPlainTextEdit(text);
+            box->setFixedWidth(kParagraphWidth);
+            box->setPlaceholderText(hint);
+            box->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+            QObject::connect(box, &QPlainTextEdit::textChanged, [box, changed]
+            {
+                changed(box->toPlainText().toStdString());
+            });
+
+            return { box, kParagraphRows };
+        }
+
+        QLineEdit* field = new QLineEdit(text);
+        field->setFixedWidth(kTextWidth);
+        field->setPlaceholderText(hint);
+
+        QObject::connect(field, &QLineEdit::textChanged, [changed](const QString& typed)
+        {
+            changed(typed.toStdString());
         });
 
-        return field;
+        return { field, 1 };
     }
 
-    using Factory = QWidget* (*)(const loom::PinSpec&, const loom::Value&, const PinChanged&);
+    using Factory = PinEditor (*)(const loom::PinSpec&, const loom::Value&, const PinChanged&);
 
-    // The pin types an author may type into. A type that is not listed has no
-    // editor at all and has to be fed by a wire.
+    // The pin types an author may type into. Anything else is fed by a wire.
     const std::map<std::string, Factory>& editableTypes()
     {
         static const std::map<std::string, Factory> table = {
@@ -89,11 +108,11 @@ namespace
     }
 }
 
-QWidget* makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed)
+PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed)
 {
     const auto factory = editableTypes().find(pin.type);
 
-    if (factory == editableTypes().end()) return nullptr;
+    if (factory == editableTypes().end()) return {};
 
     return factory->second(pin, value, changed);
 }

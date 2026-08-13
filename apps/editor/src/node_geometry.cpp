@@ -4,6 +4,9 @@
 #include <QFontMetrics>
 
 #include <QtNodes/AbstractGraphModel>
+#include <QtNodes/DataFlowGraphModel>
+
+#include "node_adaptor.h"
 
 namespace
 {
@@ -26,4 +29,28 @@ void NodeGeometry::recomputeSize(QtNodes::NodeId nodeId) const
     computed.setWidth(kMinimumWidth);
 
     _graphModel.setNodeData(nodeId, QtNodes::NodeRole::Size, computed);
+}
+
+const NodeAdaptor* NodeGeometry::adaptorFor(QtNodes::NodeId nodeId) const
+{
+    QtNodes::DataFlowGraphModel* flow = dynamic_cast<QtNodes::DataFlowGraphModel*>(&_graphModel);
+
+    return flow == nullptr ? nullptr : flow->delegateModel<NodeAdaptor>(nodeId);
+}
+
+QPointF NodeGeometry::portPosition(QtNodes::NodeId nodeId, QtNodes::PortType portType,
+                                   QtNodes::PortIndex index) const
+{
+    const QPointF base =
+        QtNodes::DefaultHorizontalNodeGeometry::portPosition(nodeId, portType, index);
+
+    const NodeAdaptor* adaptor = adaptorFor(nodeId);
+    if (adaptor == nullptr) return base;
+
+    // Replaces the base class's even spacing with the editor rows' own.
+    const double even = index * portRowHeight() + portRowHeight() / 2.0;
+    const double ours = adaptor->rowTop(portType, index)
+                        + adaptor->rowHeight(portType, index) / 2.0;
+
+    return QPointF(base.x(), base.y() - even + ours);
 }
