@@ -100,7 +100,12 @@ void PlayerWindow::buildLayout()
 
     choices = new QWidget;
     choices->setLayout(choiceRow);
-    choices->setStyleSheet("QWidget { background: white; }");
+
+    // Named, because a bare QWidget selector would repaint every button in here
+    // as well and leave them white on white.
+    choices->setObjectName("choiceBar");
+    choices->setAttribute(Qt::WA_StyledBackground, true);
+    choices->setStyleSheet("#choiceBar { background: white; }");
 
     QWidget* centre = new QWidget;
     QVBoxLayout* column = new QVBoxLayout(centre);
@@ -216,13 +221,29 @@ void PlayerWindow::askChoice(const std::vector<loom::Option>& options, const loo
     for (std::size_t index = 0; index < options.size(); ++index)
     {
         QPushButton* button = new QPushButton(toQt(options[index].text));
-        button->setStyleSheet(QString("QPushButton { font-size:%1pt; padding: 10px 18px; }")
+
+        // The passage is white whatever the desktop theme is, so the buttons
+        // state their own colours instead of inheriting a dark palette.
+        button->setStyleSheet(QString("QPushButton {"
+                                      "  font-size: %1pt;"
+                                      "  color: #1a1a1a;"
+                                      "  background: #f2f2f2;"
+                                      "  border: 1px solid #b4b4b4;"
+                                      "  border-radius: 4px;"
+                                      "  padding: 10px 18px;"
+                                      "}"
+                                      "QPushButton:hover { background: #e4e4e4; border-color: #7a7a7a; }"
+                                      "QPushButton:pressed { background: #d2d2d2; }")
                                   .arg(style.fontSize));
 
         const int picked = static_cast<int>(index);
         connect(button, &QPushButton::clicked, this, [this, picked] { chooseOption(picked); });
 
         choiceRow->addWidget(button);
+
+        // A widget born without a parent starts hidden, and being put in a
+        // layout does not undo that.
+        button->show();
     }
 }
 
@@ -254,7 +275,13 @@ void PlayerWindow::clearChoices()
 {
     while (QLayoutItem* item = choiceRow->takeAt(0))
     {
-        delete item->widget();
+        // Deferred: this runs from the clicked button's own handler.
+        if (QWidget* widget = item->widget())
+        {
+            widget->hide();
+            widget->deleteLater();
+        }
+
         delete item;
     }
 }
