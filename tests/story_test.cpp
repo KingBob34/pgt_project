@@ -1,5 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -241,4 +243,30 @@ TEST_CASE("a story survives being written back out and read again", "[story][rou
 
     REQUIRE(interpreter.finished());
     REQUIRE(host.lines.back() == "You turn back.");
+}
+
+// The story file that ships in stories/ is the one an author opens first, so
+// it is played here exactly as the player would play it.
+TEST_CASE("the story that ships with the engine offers its choices", "[story][file]")
+{
+    std::ifstream file(std::string(LOOM_STORIES_DIR) + "/gate.loom");
+    REQUIRE(file.is_open());
+
+    const std::string text((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
+
+    loom::Value document;
+    std::string error;
+    REQUIRE(loom::parseJson(text, document, error));
+
+    const loom::NodeCatalog catalog = builtins();
+    const loom::Project project = load(document, catalog);
+
+    RecordingHost host;
+    loom::Interpreter interpreter(project, catalog, host);
+    interpreter.start();
+
+    REQUIRE(host.lines.size() == 1);
+    REQUIRE(host.offered.size() == 2);
+    REQUIRE(host.offered.front() == "Bribe the guard");
 }
