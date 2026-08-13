@@ -19,6 +19,7 @@ class GraphScene;
 class GraphView;
 class QListWidget;
 class QListWidgetItem;
+class QAction;
 
 class EditorWindow : public QMainWindow
 {
@@ -35,12 +36,16 @@ private:
     void buildCanvas();
     void buildConsole();
     void buildScenes();
+    void buildToolBar();
 
     void newStory();
     void chooseStory();
     bool saveStory();
     bool saveStoryAs();
     bool writeStory(const QString& path);
+    bool writeProjectTo(const QString& path);
+    void playStory();
+    void clearConsole();
 
     void setStoryPath(const QString& path);
     void log(const QString& text, bool fault = false);
@@ -67,6 +72,8 @@ private:
 
     QListWidget* console = nullptr;
     QListWidget* scenes = nullptr;
+    QAction* saveAction = nullptr;
+    QAction* playAction = nullptr;
 
     // Set while the scene list is being refilled, so its own signals do not
     // read back as the author clicking about.

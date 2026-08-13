@@ -14,6 +14,16 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QCoreApplication>
+#include <QFileInfo>
+#include <QProcess>
+#include <QIcon>
+#include <QPainter>
+#include <QPixmap>
+#include <QPolygonF>
+#include <QStandardPaths>
+#include <QStyle>
+#include <QToolBar>
 
 #include "graph_document.h"
 #include "graph_model.h"
@@ -28,6 +38,49 @@
 #include "loom/value/inspect.h"
 #include "loom/value/parse.h"
 
+namespace
+{
+    // The player sits beside the editor once deployed, but in its own
+    // directory inside a build tree.
+    QString findPlayer()
+    {
+#ifdef Q_OS_WIN
+        const QString name = "loom_player.exe";
+#else
+        const QString name = "loom_player";
+#endif
+
+        const QString here = QCoreApplication::applicationDirPath();
+
+        for (const QString& candidate : { here + "/" + name, here + "/../player/" + name })
+        {
+            if (QFileInfo::exists(candidate)) return QFileInfo(candidate).absoluteFilePath();
+        }
+
+        return QString();
+    }
+
+    // Qt's stock media-play icon is a dark triangle that vanishes on a dark
+    // toolbar. Drawn here until the icon set is settled.
+    QIcon playIcon()
+    {
+        QPixmap pixmap(24, 24);
+        pixmap.fill(Qt::transparent);
+
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(104, 198, 104));
+
+        QPolygonF triangle;
+        triangle << QPointF(6.0, 3.5) << QPointF(19.5, 12.0) << QPointF(6.0, 20.5);
+
+        painter.drawPolygon(triangle);
+
+        return QIcon(pixmap);
+    }
+}
+
 EditorWindow::EditorWindow()
 {
     loom::registerBuiltinNodes(catalog);
@@ -37,6 +90,7 @@ EditorWindow::EditorWindow()
 
     buildCanvas();
     buildMenus();
+    buildToolBar();
     buildConsole();
     buildScenes();
 
@@ -77,8 +131,8 @@ void EditorWindow::buildMenus()
 
     file->addSeparator();
 
-    QAction* save = file->addAction("&Save", this, &EditorWindow::saveStory);
-    save->setShortcut(QKeySequence::Save);
+    saveAction = file->addAction("&Save", this, &EditorWindow::saveStory);
+    saveAction->setShortcut(QKeySequence::Save);
 
     QAction* saveAs = file->addAction("Save &As...", this, &EditorWindow::saveStoryAs);
     saveAs->setShortcut(QKeySequence::SaveAs);
@@ -87,7 +141,6 @@ void EditorWindow::buildMenus()
 
     QAction* quit = file->addAction("&Quit", this, &QWidget::close);
     quit->setShortcut(QKeySequence::Quit);
-
 
     QMenu* edit = menuBar()->addMenu("&Edit");
 
@@ -99,6 +152,39 @@ void EditorWindow::buildMenus()
 
     edit->addAction(undo);
     edit->addAction(redo);
+
+    QMenu* debug = menuBar()->addMenu("&Debug");
+
+    playAction = debug->addAction("&Play", this, &EditorWindow::playStory);
+    playAction->setShortcut(Qt::Key_F5);
+
+    QAction* here = debug->addAction("Play From &Here");
+    here->setShortcut(Qt::SHIFT | Qt::Key_F5);
+    here->setEnabled(false);
+
+    debug->addSeparator();
+
+    debug->addAction("&Clear Console", this, &EditorWindow::clearConsole);
+}
+
+void EditorWindow::buildToolBar()
+{
+    saveAction->setIcon(style()->standardIcon(QStyle::SP_DialogSaveButton));
+    playAction->setIcon(playIcon());
+
+    QToolBar* bar = addToolBar("Main");
+    bar->setMovable(false);
+    bar->setIconSize(QSize(24, 24));
+
+    // Placeholder look. The whole appearance pass replaces this.
+    bar->setStyleSheet(
+        "QToolBar { padding: 5px 8px; spacing: 14px; }"
+        "QToolButton { padding: 6px; border: 1px solid transparent; border-radius: 4px; }"
+        "QToolButton:hover { background: #3d3d3d; border-color: #5a5a5a; }"
+        "QToolButton:pressed { background: #2b2b2b; }");
+
+    bar->addAction(saveAction);
+    bar->addAction(playAction);
 }
 
 void EditorWindow::buildConsole()
@@ -448,7 +534,7 @@ bool EditorWindow::saveStoryAs()
     return path.isEmpty() ? false : writeStory(path);
 }
 
-bool EditorWindow::writeStory(const QString& path)
+bool EditorWindow::writeProjectTo(const QString& path)
 {
     project.graphs[editing] = document->graph();
 
@@ -462,6 +548,13 @@ bool EditorWindow::writeStory(const QString& path)
 
     file.write(QByteArray::fromStdString(loom::writeJson(loom::writeProject(project))));
     file.close();
+
+    return true;
+}
+
+bool EditorWindow::writeStory(const QString& path)
+{
+    if (!writeProjectTo(path)) return false;
 
     setStoryPath(path);
 
@@ -484,3 +577,31 @@ void EditorWindow::setStoryPath(const QString& path)
     setWindowTitle(shown + " - Loom Editor");
 }
 
+void EditorWindow::playStory()
+{
+    const QString path =
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/loom_playtest.loom";
+
+    if (!writeProjectTo(path)) return;
+
+    const QString player = findPlayer();
+
+    if (player.isEmpty())
+    {
+        log("Cannot find loom_player next to the editor.", true);
+        return;
+    }
+
+    if (!QProcess::startDetached(player, { path }))
+    {
+        log("The player would not start.", true);
+        return;
+    }
+
+    log("Playing " + QString::fromStdString(project.entry));
+}
+
+void EditorWindow::clearConsole()
+{
+    console->clear();
+}
