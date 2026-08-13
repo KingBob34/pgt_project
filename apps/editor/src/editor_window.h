@@ -20,6 +20,7 @@ class GraphView;
 class QListWidget;
 class QListWidgetItem;
 class QAction;
+class QTabWidget;
 
 class EditorWindow : public QMainWindow
 {
@@ -34,9 +35,12 @@ public:
 private:
     void buildMenus();
     void buildCanvas();
-    void buildConsole();
-    void buildScenes();
     void buildToolBar();
+    void buildDocks();
+
+    QWidget* buildConsole();
+    QWidget* buildScenes();
+    QWidget* buildPanel();
 
     void newStory();
     void chooseStory();
@@ -72,11 +76,11 @@ private:
 
     QListWidget* console = nullptr;
     QListWidget* scenes = nullptr;
+    QTabWidget* panel = nullptr;
     QAction* saveAction = nullptr;
     QAction* playAction = nullptr;
 
-    // Set while the scene list is being refilled, so its own signals do not
-    // read back as the author clicking about.
+    // True while the scene list is being refilled, so its signals can be ignored.
     bool rebuilding = false;
 
     loom::Project project;

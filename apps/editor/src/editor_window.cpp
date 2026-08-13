@@ -24,6 +24,8 @@
 #include <QStandardPaths>
 #include <QStyle>
 #include <QToolBar>
+#include <QListView>
+#include <QTabWidget>
 
 #include "graph_document.h"
 #include "graph_model.h"
@@ -40,8 +42,7 @@
 
 namespace
 {
-    // The player sits beside the editor once deployed, but in its own
-    // directory inside a build tree.
+    // Deployed side by side; in a build tree each target has its own directory.
     QString findPlayer()
     {
 #ifdef Q_OS_WIN
@@ -60,8 +61,7 @@ namespace
         return QString();
     }
 
-    // Qt's stock media-play icon is a dark triangle that vanishes on a dark
-    // toolbar. Drawn here until the icon set is settled.
+    // A green play triangle. The stock media icon is dark on a dark toolbar.
     QIcon playIcon()
     {
         QPixmap pixmap(24, 24);
@@ -91,16 +91,14 @@ EditorWindow::EditorWindow()
     buildCanvas();
     buildMenus();
     buildToolBar();
-    buildConsole();
-    buildScenes();
+    buildDocks();
 
     newStory();
 }
 
 EditorWindow::~EditorWindow()
 {
-    // The view reads the scene and the model, both of which are members and so
-    // are destroyed before QMainWindow deletes its children.
+    // The view reads the scene and the model, and both are destroyed before it.
     delete takeCentralWidget();
 }
 
@@ -176,7 +174,7 @@ void EditorWindow::buildToolBar()
     bar->setMovable(false);
     bar->setIconSize(QSize(24, 24));
 
-    // Placeholder look. The whole appearance pass replaces this.
+    // Placeholder styling.
     bar->setStyleSheet(
         "QToolBar { padding: 5px 8px; spacing: 14px; }"
         "QToolButton { padding: 6px; border: 1px solid transparent; border-radius: 4px; }"
@@ -187,20 +185,21 @@ void EditorWindow::buildToolBar()
     bar->addAction(playAction);
 }
 
-void EditorWindow::buildConsole()
+QWidget* EditorWindow::buildConsole()
 {
     console = new QListWidget;
     console->setMinimumHeight(140);
 
-    QDockWidget* dock = new QDockWidget("Console", this);
-    dock->setWidget(console);
-
-    addDockWidget(Qt::BottomDockWidgetArea, dock);
+    return console;
 }
 
-void EditorWindow::buildScenes()
+QWidget* EditorWindow::buildScenes()
 {
     scenes = new QListWidget;
+    scenes->setFlow(QListView::LeftToRight);
+    scenes->setWrapping(false);
+    scenes->setFixedHeight(34);
+    scenes->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scenes->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     scenes->setContextMenuPolicy(Qt::CustomContextMenu);
 
@@ -230,23 +229,57 @@ void EditorWindow::buildScenes()
     connect(add, &QPushButton::clicked, this, &EditorWindow::addScene);
     connect(remove, &QPushButton::clicked, this, &EditorWindow::removeScene);
 
-    QHBoxLayout* buttons = new QHBoxLayout;
-    buttons->setContentsMargins(0, 0, 0, 0);
-    buttons->addWidget(add);
-    buttons->addWidget(remove);
-    buttons->addStretch();
+    QWidget* strip = new QWidget;
 
-    QWidget* panel = new QWidget;
+    QHBoxLayout* row = new QHBoxLayout(strip);
+    row->setContentsMargins(4, 4, 4, 4);
+    row->setSpacing(4);
+    row->addWidget(add);
+    row->addWidget(remove);
+    row->addWidget(scenes, 1);
 
-    QVBoxLayout* column = new QVBoxLayout(panel);
-    column->setContentsMargins(4, 4, 4, 4);
-    column->addWidget(scenes, 1);
-    column->addLayout(buttons);
+    return strip;
+}
 
-    QDockWidget* dock = new QDockWidget("Scenes", this);
-    dock->setWidget(panel);
+QWidget* EditorWindow::buildPanel()
+{
+    panel = new QTabWidget;
+    panel->setDocumentMode(true);
 
-    addDockWidget(Qt::LeftDockWidgetArea, dock);
+    panel->addTab(new QWidget, "Variables");
+
+    return panel;
+}
+
+void EditorWindow::buildDocks()
+{
+    // Corners decide whether the left column or the bottom bar owns them.
+    setCorner(Qt::TopLeftCorner, Qt::LeftDockWidgetArea);
+    setCorner(Qt::BottomLeftCorner, Qt::LeftDockWidgetArea);
+    setCorner(Qt::TopRightCorner, Qt::RightDockWidgetArea);
+    setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
+
+    QDockWidget* playtest = new QDockWidget("Playtest", this);
+    playtest->setWidget(new QWidget);
+    addDockWidget(Qt::LeftDockWidgetArea, playtest);
+
+    QDockWidget* output = new QDockWidget("Console", this);
+    output->setWidget(buildConsole());
+    addDockWidget(Qt::LeftDockWidgetArea, output);
+
+    splitDockWidget(playtest, output, Qt::Vertical);
+
+    QDockWidget* strip = new QDockWidget("Scenes", this);
+    strip->setWidget(buildScenes());
+    addDockWidget(Qt::BottomDockWidgetArea, strip);
+
+    QDockWidget* inspector = new QDockWidget("Inspector", this);
+    inspector->setWidget(buildPanel());
+
+    addDockWidget(Qt::RightDockWidgetArea, inspector);
+
+    resizeDocks({ playtest, output }, { 420, 300 }, Qt::Vertical);
+    resizeDocks({ inspector }, { 320 }, Qt::Horizontal);
 }
 
 void EditorWindow::refreshScenes()
@@ -276,8 +309,7 @@ void EditorWindow::refreshScenes()
 
 void EditorWindow::showScene(const loom::Graph& graph)
 {
-    // Nothing is painted while the canvas empties and refills, or the part
-    // built so far is drawn over whatever the viewport happened to hold.
+    // Painting is off while the canvas empties and refills.
     view->setUpdatesEnabled(false);
 
     document->open(graph);
