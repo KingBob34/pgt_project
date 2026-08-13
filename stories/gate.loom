@@ -109,7 +109,7 @@
             "textIn": "The guard blocks the gate. His eyes go to your purse."
           },
           "position": {
-            "x": 240.0,
+            "x": 460.0,
             "y": 0.0
           },
           "type": "showText"
@@ -120,7 +120,7 @@
             "name": "gold"
           },
           "position": {
-            "x": 480.0,
+            "x": 980.0,
             "y": 0.0
           },
           "type": "setVariable"
@@ -131,8 +131,8 @@
             "value": 25
           },
           "position": {
-            "x": 480.0,
-            "y": 200.0
+            "x": 980.0,
+            "y": 280.0
           },
           "type": "integerValue"
         },
@@ -142,7 +142,7 @@
             "name": "gold"
           },
           "position": {
-            "x": 720.0,
+            "x": 1460.0,
             "y": 0.0
           },
           "type": "getVariable"
@@ -150,7 +150,7 @@
         {
           "id": 6,
           "position": {
-            "x": 960.0,
+            "x": 1940.0,
             "y": 0.0
           },
           "type": "greater"
@@ -161,15 +161,15 @@
             "value": 20
           },
           "position": {
-            "x": 960.0,
-            "y": 200.0
+            "x": 1940.0,
+            "y": 300.0
           },
           "type": "integerValue"
         },
         {
           "id": 8,
           "position": {
-            "x": 1200.0,
+            "x": 2400.0,
             "y": 0.0
           },
           "type": "branch"
@@ -183,7 +183,7 @@
             "option1": "Walk away"
           },
           "position": {
-            "x": 1440.0,
+            "x": 2800.0,
             "y": 0.0
           },
           "type": "showChoices"
@@ -195,8 +195,8 @@
             "textIn": "Twenty gold changes hands. The gate swings open."
           },
           "position": {
-            "x": 1680.0,
-            "y": -120.0
+            "x": 3320.0,
+            "y": -300.0
           },
           "type": "showText"
         },
@@ -207,8 +207,8 @@
             "textIn": "You turn back towards the village, purse still heavy."
           },
           "position": {
-            "x": 1680.0,
-            "y": 120.0
+            "x": 3320.0,
+            "y": 140.0
           },
           "type": "showText"
         },
@@ -219,8 +219,8 @@
             "textIn": "The guard counts your coins and laughs. Not nearly enough."
           },
           "position": {
-            "x": 1440.0,
-            "y": 320.0
+            "x": 2800.0,
+            "y": 400.0
           },
           "type": "showText"
         },
@@ -231,8 +231,8 @@
             "textIn": "You have no money at all."
           },
           "position": {
-            "x": 960.0,
-            "y": 440.0
+            "x": 1460.0,
+            "y": 420.0
           },
           "type": "showText"
         }
