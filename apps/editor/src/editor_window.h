@@ -53,7 +53,15 @@ private:
     void clearConsole();
 
     void setStoryPath(const QString& path);
-    void log(const QString& text, bool fault = false);
+
+    QListWidgetItem* log(const QString& text, bool fault = false);
+
+    // A console line that remembers the node it is about.
+    void logAt(const QString& text, const std::string& graph, loom::NodeId node, bool fault = false);
+
+    QString nodeLabel(const std::string& graph, loom::NodeId node) const;
+    void    revealNode(QListWidgetItem* line);
+
     void report(const loom::Diagnostics& diagnostics);
 
     void syncDetails();

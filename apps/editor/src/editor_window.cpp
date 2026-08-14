@@ -193,6 +193,8 @@ QWidget* EditorWindow::buildConsole()
     console = new QListWidget;
     console->setMinimumHeight(140);
 
+    connect(console, &QListWidget::itemDoubleClicked, this, &EditorWindow::revealNode);
+
     return console;
 }
 
@@ -470,20 +472,102 @@ void EditorWindow::reportSceneReferences(const std::string& name)
                 if (!loom::isString(stored.second)) continue;
                 if (loom::asString(stored.second) != name) continue;
 
-                log("Warning in scene '" + QString::fromStdString(graph.name) + "' at node " +
-                    QString::number(node.id) + ", pin " + QString::fromStdString(stored.first) +
-                    ": still names the scene '" + QString::fromStdString(name) + "'");
+                logAt("Warning in scene '" + QString::fromStdString(graph.name) + "' at " +
+                      nodeLabel(graph.name, node.id) + ", pin " +
+                      QString::fromStdString(stored.first) + ": still names the scene '" +
+                      QString::fromStdString(name) + "'",
+                      graph.name, node.id);
             }
         }
     }
 }
 
-void EditorWindow::log(const QString& text, bool fault)
+QListWidgetItem* EditorWindow::log(const QString& text, bool fault)
 {
     QListWidgetItem* line = new QListWidgetItem(text, console);
     if (fault) line->setForeground(Qt::red);
 
     console->scrollToBottom();
+
+    return line;
+}
+
+void EditorWindow::logAt(const QString& text, const std::string& graph, loom::NodeId node, bool fault)
+{
+    QListWidgetItem* line = log(text, fault);
+
+    line->setData(Qt::UserRole, QString::fromStdString(graph));
+    line->setData(Qt::UserRole + 1, node);
+}
+
+QString EditorWindow::nodeLabel(const std::string& graph, loom::NodeId node) const
+{
+    const QString number = " #" + QString::number(node);
+
+    // The canvas is ahead of the project until the next save.
+    if (graph.empty() || graph == project.graphs[editing].name)
+    {
+        NodeAdaptor* live = model->delegateModel<NodeAdaptor>(static_cast<QtNodes::NodeId>(node));
+
+        if (live != nullptr) return live->caption() + number;
+    }
+
+    const loom::Graph* found = project.findGraph(graph);
+
+    if (found != nullptr)
+    {
+        for (const loom::NodeInstance& instance : found->nodes)
+        {
+            if (instance.id != node) continue;
+
+            const loom::NodeType* type = catalog.find(instance.type);
+
+            if (type != nullptr) return QString::fromStdString(type->displayName()) + number;
+        }
+    }
+
+    return "node" + number;
+}
+
+void EditorWindow::revealNode(QListWidgetItem* line)
+{
+    const QVariant target = line->data(Qt::UserRole + 1);
+
+    if (!target.isValid()) return;
+
+    const std::string wanted = line->data(Qt::UserRole).toString().toStdString();
+
+    if (!wanted.empty() && wanted != project.graphs[editing].name)
+    {
+        std::size_t index = project.graphs.size();
+
+        for (std::size_t at = 0; at < project.graphs.size(); ++at)
+        {
+            if (project.graphs[at].name == wanted) index = at;
+        }
+
+        if (index == project.graphs.size())
+        {
+            log("There is no longer a scene called '" + QString::fromStdString(wanted) + "'.", true);
+            return;
+        }
+
+        scenes->setCurrentRow(static_cast<int>(index));
+    }
+
+    QtNodes::NodeGraphicsObject* object =
+        scene->nodeGraphicsObject(static_cast<QtNodes::NodeId>(target.toInt()));
+
+    if (object == nullptr)
+    {
+        log("Node #" + target.toString() + " is no longer on the canvas.", true);
+        return;
+    }
+
+    scene->clearSelection();
+    object->setSelected(true);
+
+    view->centerOn(object);
 }
 
 void EditorWindow::report(const loom::Diagnostics& diagnostics)
@@ -494,10 +578,13 @@ void EditorWindow::report(const loom::Diagnostics& diagnostics)
 
         QString line = fault ? "Error" : "Warning";
 
-        if (entry.node != 0)    line += " at node " + QString::number(entry.node);
+        if (entry.node != 0)    line += " at " + nodeLabel(entry.graph, entry.node);
         if (!entry.pin.empty()) line += ", pin " + QString::fromStdString(entry.pin);
 
-        log(line + ": " + QString::fromStdString(entry.message), fault);
+        line += ": " + QString::fromStdString(entry.message);
+
+        if (entry.node == 0) log(line, fault);
+        else                 logAt(line, entry.graph, entry.node, fault);
     }
 }
 
