@@ -297,15 +297,14 @@ void NodeAdaptor::rebuildEditors()
         delete item;
     }
 
-    // A value node has no flow pins, so its constant is the output pin itself.
-    const std::vector<loom::PinSpec>& pins = constant ? outputs : inputs;
-
-    for (const loom::PinSpec& pin : pins)
+    for (const loom::PinSpec& pin : editablePins())
     {
         const PinEditor made = makePinEditor(pin, pinValue(pin),
                                              [this, name = pin.name](loom::Value value)
                                              {
                                                  data.pinValues[name] = std::move(value);
+
+                                                 Q_EMIT pinValueTyped(QString::fromStdString(name));
                                              });
 
         QWidget* editor = made.widget;
@@ -320,6 +319,8 @@ void NodeAdaptor::rebuildEditors()
             editor->setEnabled(wired.count(pin.name) == 0);
             editors[pin.name] = editor;
         }
+
+        fitToNode(made.widget, pin);
 
         const int height = portRowHeight() * std::max(1, made.rows);
 
@@ -345,6 +346,25 @@ void NodeAdaptor::rebuildEditors()
     const std::size_t others = constant ? inputs.size() : outputs.size();
 
     body->setFixedHeight(std::max(total, static_cast<int>(others) * portRowHeight()));
+}
+
+void NodeAdaptor::setPinValue(const std::string& pin, loom::Value value)
+{
+    data.pinValues[pin] = std::move(value);
+
+    // The row goes first, so that a keystroke does not rebuild the whole body.
+    const auto shown = editors.find(pin);
+
+    if (shown != editors.end() && showInEditor(shown->second, data.pinValues[pin])) return;
+
+    rebuildEditors();
+
+    Q_EMIT requestNodeUpdate();
+}
+
+bool NodeAdaptor::isWired(const std::string& pin) const
+{
+    return wired.count(pin) != 0;
 }
 
 bool NodeAdaptor::edited(QtNodes::PortType portType) const

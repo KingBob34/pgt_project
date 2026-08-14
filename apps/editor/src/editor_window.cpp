@@ -27,6 +27,9 @@
 #include <QListView>
 #include <QTabWidget>
 
+#include <QtNodes/internal/NodeGraphicsObject.hpp>
+
+#include "details_panel.h"
 #include "graph_document.h"
 #include "graph_model.h"
 #include "graph_scene.h"
@@ -246,7 +249,10 @@ QWidget* EditorWindow::buildPanel()
     panel = new QTabWidget;
     panel->setDocumentMode(true);
 
+    details = new DetailsPanel;
+
     panel->addTab(new QWidget, "Variables");
+    panel->addTab(details, "Details");
 
     return panel;
 }
@@ -280,6 +286,36 @@ void EditorWindow::buildDocks()
 
     resizeDocks({ playtest, output }, { 420, 300 }, Qt::Vertical);
     resizeDocks({ inspector }, { 320 }, Qt::Horizontal);
+
+    connect(scene, &QGraphicsScene::selectionChanged, this, &EditorWindow::syncDetails);
+
+    syncDetails();
+}
+
+void EditorWindow::syncDetails()
+{
+    NodeAdaptor* only = nullptr;
+
+    for (QGraphicsItem* item : scene->selectedItems())
+    {
+        QtNodes::NodeGraphicsObject* object =
+            qgraphicsitem_cast<QtNodes::NodeGraphicsObject*>(item);
+
+        if (object == nullptr) continue;
+
+        // The panel holds one node, so a wider selection shows none.
+        if (only != nullptr)
+        {
+            only = nullptr;
+            break;
+        }
+
+        only = model->delegateModel<NodeAdaptor>(object->nodeId());
+    }
+
+    details->setNode(only);
+
+    if (only != nullptr) panel->setCurrentWidget(details);
 }
 
 void EditorWindow::refreshScenes()
@@ -317,6 +353,8 @@ void EditorWindow::showScene(const loom::Graph& graph)
     view->setUpdatesEnabled(true);
 
     scene->undoStack().clear();
+
+    syncDetails();
 }
 
 void EditorWindow::switchScene(int index)
@@ -351,6 +389,7 @@ void EditorWindow::addScene()
 
     scene->undoStack().clear();
 
+    syncDetails();
     refreshScenes();
 }
 
@@ -478,6 +517,8 @@ void EditorWindow::newStory()
 
     scene->undoStack().clear();
     console->clear();
+
+    syncDetails();
 
     setStoryPath(QString());
     refreshScenes();

@@ -27,6 +27,7 @@ add_executable(loom_editor WIN32
         src/node_geometry.cpp
         src/graph_document.cpp
         src/pin_editor.cpp
+        src/details_panel.cpp
 )
 
 target_link_libraries(loom_editor PRIVATE

@@ -59,6 +59,19 @@ public:
     int rowTop(QtNodes::PortType portType, QtNodes::PortIndex index) const;
     int rowHeight(QtNodes::PortType portType, QtNodes::PortIndex index) const;
 
+    // Writes a pin's value from outside the node and redraws its editor.
+    void setPinValue(const std::string& pin, loom::Value value);
+
+    bool isWired(const std::string& pin) const;
+
+    // The pins the author may type into. A value node has no flow pins, so its
+    // constant is the output pin itself; every other node is edited on its inputs.
+    const std::vector<loom::PinSpec>& editablePins() const { return constant ? outputs : inputs; }
+
+Q_SIGNALS:
+    // Raised by the editor on the node itself, not by setPinValue.
+    void pinValueTyped(const QString& pin);
+
 public Q_SLOTS:
     void inputConnectionCreated(const QtNodes::ConnectionId& connection) override;
     void inputConnectionDeleted(const QtNodes::ConnectionId& connection) override;

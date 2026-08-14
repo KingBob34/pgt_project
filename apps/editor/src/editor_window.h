@@ -13,6 +13,7 @@
 #include "loom/graph/diagnostics.h"
 #include "loom/graph/graph.h"
 
+class DetailsPanel;
 class GraphDocument;
 class GraphModel;
 class GraphScene;
@@ -55,6 +56,8 @@ private:
     void log(const QString& text, bool fault = false);
     void report(const loom::Diagnostics& diagnostics);
 
+    void syncDetails();
+
     void refreshScenes();
     void showScene(const loom::Graph& graph);
     void switchScene(int index);
@@ -77,6 +80,7 @@ private:
     QListWidget* console = nullptr;
     QListWidget* scenes = nullptr;
     QTabWidget* panel = nullptr;
+    DetailsPanel* details = nullptr;
     QAction* saveAction = nullptr;
     QAction* playAction = nullptr;
 

@@ -20,4 +20,11 @@ struct PinEditor
 // The editor for one pin. A null widget means the type has none.
 PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed);
 
+// Narrows an editor to the width a node on the canvas has room for.
+void fitToNode(QWidget* editor, const loom::PinSpec& pin);
+
+// Puts a value into an editor that is already on screen, without reporting it
+// back. False if the widget is not one this file made.
+bool showInEditor(QWidget* editor, const loom::Value& value);
+
 #endif //LOOM_EDITOR_PIN_EDITOR_H

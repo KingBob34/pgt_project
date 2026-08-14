@@ -7,6 +7,7 @@
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QSignalBlocker>
 #include <QSpinBox>
 
 #include "loom/value/inspect.h"
@@ -36,7 +37,6 @@ namespace
     PinEditor makeInt(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
         QSpinBox* box = new QSpinBox;
-        box->setFixedWidth(kNumberWidth);
         box->setRange(-kIntLimit, kIntLimit);
         box->setValue(static_cast<int>(loom::asInt(value)));
 
@@ -48,7 +48,6 @@ namespace
     PinEditor makeFloat(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
         QDoubleSpinBox* box = new QDoubleSpinBox;
-        box->setFixedWidth(kNumberWidth);
         box->setButtonSymbols(QAbstractSpinBox::NoButtons);
         box->setRange(-kFloatLimit, kFloatLimit);
         box->setDecimals(3);
@@ -68,7 +67,6 @@ namespace
         if (pin.longText)
         {
             QPlainTextEdit* box = new QPlainTextEdit(text);
-            box->setFixedWidth(kParagraphWidth);
             box->setPlaceholderText(hint);
             box->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
@@ -81,7 +79,6 @@ namespace
         }
 
         QLineEdit* field = new QLineEdit(text);
-        field->setFixedWidth(kTextWidth);
         field->setPlaceholderText(hint);
 
         QObject::connect(field, &QLineEdit::textChanged, [changed](const QString& typed)
@@ -115,4 +112,61 @@ PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinC
     if (factory == editableTypes().end()) return {};
 
     return factory->second(pin, value, changed);
+}
+
+void fitToNode(QWidget* editor, const loom::PinSpec& pin)
+{
+    if (editor == nullptr) return;
+
+    if (pin.type == loom::PinType::String)
+    {
+        editor->setFixedWidth(pin.longText ? kParagraphWidth : kTextWidth);
+        return;
+    }
+
+    if (pin.type == loom::PinType::Int || pin.type == loom::PinType::Float)
+    {
+        editor->setFixedWidth(kNumberWidth);
+    }
+}
+
+bool showInEditor(QWidget* editor, const loom::Value& value)
+{
+    if (editor == nullptr) return false;
+
+    const QSignalBlocker quiet(editor);
+
+    if (QCheckBox* box = qobject_cast<QCheckBox*>(editor))
+    {
+        box->setChecked(loom::asBool(value));
+        return true;
+    }
+
+    if (QSpinBox* box = qobject_cast<QSpinBox*>(editor))
+    {
+        box->setValue(static_cast<int>(loom::asInt(value)));
+        return true;
+    }
+
+    if (QDoubleSpinBox* box = qobject_cast<QDoubleSpinBox*>(editor))
+    {
+        box->setValue(loom::asFloat(value));
+        return true;
+    }
+
+    if (QPlainTextEdit* box = qobject_cast<QPlainTextEdit*>(editor))
+    {
+        const QString text = QString::fromStdString(loom::asString(value));
+
+        if (box->toPlainText() != text) box->setPlainText(text);
+        return true;
+    }
+
+    if (QLineEdit* field = qobject_cast<QLineEdit*>(editor))
+    {
+        field->setText(QString::fromStdString(loom::asString(value)));
+        return true;
+    }
+
+    return false;
 }
