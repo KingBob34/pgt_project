@@ -105,6 +105,41 @@ namespace loom
             return true;
         }
 
+        bool knownVariableType(const std::string& type)
+        {
+            for (const char* known : { VariableType::Bool, VariableType::Int, VariableType::Float,
+                                       VariableType::String, VariableType::Color,
+                                       VariableType::Choice, VariableType::List,
+                                       VariableType::Group })
+            {
+                if (type == known) return true;
+            }
+
+            return false;
+        }
+
+        void readVariable(const Value& record, const std::string& name,
+                          VariableSpec& out, Diagnostics& diagnostics)
+        {
+            if (const Value* type = objectGet(record, "type"))
+            {
+                out.type = asString(*type);
+
+                if (!knownVariableType(out.type))
+                {
+                    diagnostics.warning("the variable '" + name + "' is declared as '" + out.type +
+                                        "', which this build does not know", "");
+                }
+            }
+
+            if (const Value* value = objectGet(record, "value")) out.value = *value;
+
+            if (const Value* choices = objectGet(record, "choices"))
+            {
+                for (const Value& choice : *choices) out.choices.push_back(asString(choice));
+            }
+        }
+
         bool readGraphBody(const Value& document, Graph& out, Diagnostics& diagnostics)
         {
             if (const Value* name = objectGet(document, "name")) out.name = asString(*name);
@@ -160,6 +195,21 @@ namespace loom
 
         if (const Value* meta = objectGet(document, "meta")) readMeta(*meta, out.meta);
         if (const Value* entry = objectGet(document, "entry")) out.entry = asString(*entry);
+
+        // A file older than the variables block simply declares none.
+        if (const Value* variables = objectGet(document, "variables"))
+        {
+            for (const std::string& name : objectKeys(*variables))
+            {
+                const Value* record = objectGet(*variables, name);
+                if (record == nullptr) continue;
+
+                VariableSpec variable;
+                readVariable(*record, name, variable, diagnostics);
+
+                out.variables[name] = variable;
+            }
+        }
 
         const Value* graphs = objectGet(document, "graphs");
         if (graphs == nullptr || !isList(*graphs))

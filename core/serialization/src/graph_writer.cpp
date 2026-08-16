@@ -48,6 +48,23 @@ namespace loom
             return out;
         }
 
+        Value writeVariable(const VariableSpec& variable)
+        {
+            Value out = Value::object();
+            out["type"] = variable.type;
+            out["value"] = variable.value;
+
+            if (!variable.choices.empty())
+            {
+                Value choices = Value::array();
+                for (const std::string& choice : variable.choices) choices.push_back(choice);
+
+                out["choices"] = choices;
+            }
+
+            return out;
+        }
+
         Value writeGraphBody(const Graph& graph)
         {
             Value out = Value::object();
@@ -81,10 +98,17 @@ namespace loom
         Value graphs = Value::array();
         for (const Graph& graph : project.graphs) graphs.push_back(writeGraphBody(graph));
 
+        Value variables = Value::object();
+        for (const auto& entry : project.variables)
+        {
+            variables[entry.first] = writeVariable(entry.second);
+        }
+
         Value out = Value::object();
         out["schemaVersion"] = kSchemaVersion;
         out["meta"] = writeMeta(project.meta);
         out["entry"] = project.entry;
+        out["variables"] = variables;
         out["graphs"] = graphs;
 
         return out;

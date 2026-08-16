@@ -1,5 +1,6 @@
 #ifndef LOOM_GRAPH_GRAPH_H
 #define LOOM_GRAPH_GRAPH_H
+#include <map>
 #include <string>
 #include <vector>
 
@@ -39,12 +40,36 @@ namespace loom
         const Connection* incoming(NodeId to, const std::string& pin) const;
     };
 
+    // Variable type ids. The scalars share their names with PinType; the two
+    // containers have no pin of their own and travel as Any.
+    namespace VariableType
+    {
+        inline constexpr const char* Bool   = "bool";
+        inline constexpr const char* Int    = "int";
+        inline constexpr const char* Float  = "float";
+        inline constexpr const char* String = "string";
+        inline constexpr const char* Color  = "color";
+        inline constexpr const char* Choice = "choice";
+        inline constexpr const char* List   = "list";
+        inline constexpr const char* Group  = "group";
+    }
+
+    // One global variable as the author declared it. The type is an editor hint
+    // and a run-time assertion; it never reaches a pin.
+    struct VariableSpec
+    {
+        std::string              type = VariableType::String;
+        Value                    value;
+        std::vector<std::string> choices;   // the allowed values of a Choice
+    };
+
     // A whole work: several graphs plus the one that starts.
     struct Project
     {
-        Meta               meta;
-        std::string        entry;
-        std::vector<Graph> graphs;
+        Meta                                meta;
+        std::string                         entry;
+        std::map<std::string, VariableSpec> variables;
+        std::vector<Graph>                  graphs;
 
         const Graph* findGraph(const std::string& name) const;
     };

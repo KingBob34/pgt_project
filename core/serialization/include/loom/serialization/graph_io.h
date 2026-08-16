@@ -8,7 +8,7 @@ namespace loom
 {
     // The file format's own version, independent of the engine's version.
     // A reader that meets a number it does not know refuses the file.
-    inline constexpr int kSchemaVersion = 2;
+    inline constexpr int kSchemaVersion = 3;
 
     Value writeGraph(const Graph& graph);
     Value writeProject(const Project& project);
