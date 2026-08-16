@@ -27,6 +27,10 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
 
 private:
+    // Every way a pan can end goes through here, or the hand cursor is left
+    // lying on the canvas.
+    void endPan();
+
     const loom::NodeCatalog& catalog;
 
     bool panning = false;

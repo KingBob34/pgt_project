@@ -71,15 +71,26 @@ void GraphView::mouseMoveEvent(QMouseEvent* event)
     QGraphicsView::mouseMoveEvent(event);
 }
 
+void GraphView::endPan()
+{
+    panning = false;
+
+    viewport()->unsetCursor();
+}
+
 void GraphView::mouseReleaseEvent(QMouseEvent* event)
 {
-    if (panning && event->button() == Qt::RightButton)
+    if (event->button() == Qt::RightButton)
     {
-        panning = false;
-        viewport()->unsetCursor();
+        const bool wasPanning = panning;
 
-        event->accept();
-        return;
+        endPan();
+
+        if (wasPanning)
+        {
+            event->accept();
+            return;
+        }
     }
 
     QtNodes::GraphicsView::mouseReleaseEvent(event);
@@ -95,8 +106,14 @@ void GraphView::keyReleaseEvent(QKeyEvent* event)
 
 void GraphView::contextMenuEvent(QContextMenuEvent* event)
 {
+    // The menu takes the mouse, so the release that would end the pan never
+    // arrives here.
+    const bool dragged = panned;
+
+    endPan();
+
     // A dragged right button was a pan, not a request for the menu.
-    if (panned)
+    if (dragged)
     {
         event->accept();
         return;
