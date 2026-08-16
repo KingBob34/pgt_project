@@ -3,6 +3,8 @@
 #include <tuple>
 #include <utility>
 
+#include "loom/value/inspect.h"
+
 namespace loom
 {
     namespace
@@ -17,6 +19,34 @@ namespace loom
             return nullptr;
         }
 
+        void reportFault(Host& host, const std::string& detail)
+        {
+            Value details = Value::object();
+            details["detail"] = detail;
+
+            host.command("error", details);
+        }
+
+        // Whether a value is what the author declared the variable to hold. A
+        // type this build does not know cannot be judged, so it passes.
+        bool matchesType(const std::string& type, const Value& value)
+        {
+            if (type == VariableType::Bool)   return isBool(value);
+            if (type == VariableType::Int)    return isInt(value);
+            if (type == VariableType::Float)  return isNumber(value);
+            if (type == VariableType::List)   return isList(value);
+            if (type == VariableType::Group)  return isObject(value);
+
+            // Colours and choices are both stored as text.
+            if (type == VariableType::String || type == VariableType::Color ||
+                type == VariableType::Choice)
+            {
+                return isString(value);
+            }
+
+            return true;
+        }
+
         // What one node sees while it runs.
         class RuntimeContext : public ExecutionContext
         {
@@ -26,9 +56,10 @@ namespace loom
                            const std::vector<PinSpec>& pins,
                            std::map<PinRef, Value>& outputs,
                            std::map<std::string, Value>& variables,
+                           const std::map<std::string, VariableSpec>& declared,
                            Host& host)
                 : graph(graph), node(node), pins(pins),
-                  outputs(outputs), variables(variables), hostRef(host) {}
+                  outputs(outputs), variables(variables), declared(declared), hostRef(host) {}
 
             Value input(const std::string& pin) const override
             {
@@ -70,6 +101,18 @@ namespace loom
 
             void writeVariable(const std::string& name, Value value) override
             {
+                const auto spec = declared.find(name);
+
+                // Said out loud, then written anyway: the author's data is never
+                // second-guessed, only reported on.
+                if (spec != declared.end() && !matchesType(spec->second.type, value))
+                {
+                    reportFault(hostRef, "the variable '" + name + "' is declared as " +
+                                         spec->second.type + " but node " +
+                                         std::to_string(node.id) + " in scene '" + graph.name +
+                                         "' wrote " + typeName(value) + " into it");
+                }
+
                 variables[name] = std::move(value);
             }
 
@@ -81,7 +124,10 @@ namespace loom
             const std::vector<PinSpec>&   pins;
             std::map<PinRef, Value>&      outputs;
             std::map<std::string, Value>& variables;
-            Host&                         hostRef;
+
+            const std::map<std::string, VariableSpec>& declared;
+
+            Host& hostRef;
         };
     }
 
@@ -108,6 +154,8 @@ namespace loom
         outputs.clear();
         pending = Pending();
         done = false;
+
+        for (const auto& entry : project.variables) variables[entry.first] = entry.second.value;
 
         callStack.emplace_back();
 
@@ -147,10 +195,7 @@ namespace loom
 
     void Interpreter::report(const std::string& detail) const
     {
-        Value details = Value::object();
-        details["detail"] = detail;
-
-        host.command("error", details);
+        reportFault(host, detail);
     }
 
     bool Interpreter::advance(const std::string& pin)
@@ -184,7 +229,7 @@ namespace loom
             }
 
             const std::vector<PinSpec> pins = type->pins(node->extraPins);
-            RuntimeContext context(*graph, *node, pins, outputs, variables, host);
+            RuntimeContext context(*graph, *node, pins, outputs, variables, project.variables, host);
 
             const FlowResult result = type->execute(context);
 
@@ -251,7 +296,7 @@ namespace loom
         if (type == nullptr) return;
 
         const std::vector<PinSpec> pins = type->pins(node->extraPins);
-        RuntimeContext context(*graph, *node, pins, outputs, variables, host);
+        RuntimeContext context(*graph, *node, pins, outputs, variables, project.variables, host);
 
         // Running the node again only re-issues the prompt: it suspended last
         // time without changing anything, so it will do the same now.
