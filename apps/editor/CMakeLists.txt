@@ -30,6 +30,8 @@ add_executable(loom_editor WIN32
         src/details_panel.cpp
 )
 
+set_target_properties(loom_editor PROPERTIES OUTPUT_NAME LoomEngine)
+
 target_link_libraries(loom_editor PRIVATE
         Qt6::Widgets
         QtNodes
