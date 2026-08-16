@@ -18,7 +18,7 @@
 namespace
 {
     const char* kStory = R"({
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "meta": { "title": "Gate Test", "author": "KingBob" },
   "entry": "gate",
   "graphs": [

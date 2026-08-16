@@ -1,6 +1,7 @@
 add_executable(loom_runtime_tests
         interpreter_test.cpp
         save_test.cpp
+        variables_test.cpp
 )
 
 # Links only the layer under test

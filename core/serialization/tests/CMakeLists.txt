@@ -1,5 +1,6 @@
 add_executable(loom_serialization_tests
         round_trip_test.cpp
+        variables_test.cpp
 )
 
 # Links only the layer under test
