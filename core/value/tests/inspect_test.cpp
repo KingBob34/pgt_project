@@ -75,6 +75,19 @@ TEST_CASE("toText renders any value for display", "[value][inspect]")
     REQUIRE(loom::toText(loom::Value()).empty());
 }
 
+TEST_CASE("toText renders a list and an object too", "[value][inspect]")
+{
+    loom::Value list = loom::Value::array();
+    list.push_back(1);
+    list.push_back(2);
+
+    loom::Value object = loom::Value::object();
+    object["detail"] = "gone wrong";
+
+    REQUIRE(loom::toText(list) == "[1,2]");
+    REQUIRE(loom::toText(object) == "{\"detail\":\"gone wrong\"}");
+}
+
 TEST_CASE("objectGet returns nullptr rather than failing", "[value][inspect]")
 {
     loom::Value pets = loom::Value::object();

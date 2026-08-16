@@ -41,7 +41,7 @@ namespace loom
     {
         if (value.is_string()) return value.get<std::string>();
         if (value.is_null()) return std::string();
-        return value.dump(value);
+        return value.dump();
     }
 
     bool equals(const Value& left, const Value& right)
