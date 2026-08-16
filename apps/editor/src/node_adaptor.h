@@ -12,6 +12,7 @@
 #include <QtNodes/NodeDelegateModelRegistry>
 
 #include "loom/graph/catalog.h"
+#include "loom/graph/graph.h"
 
 // The editor's only NodeDelegateModel. Forwards every question QtNodes asks
 // about a node to the NodeType it shares with the engine.
@@ -20,7 +21,9 @@ class NodeAdaptor : public QtNodes::NodeDelegateModel
     Q_OBJECT
 
 public:
-    explicit NodeAdaptor(const loom::NodeType& nodeType);
+    // The declared variables outlive every node on the canvas.
+    NodeAdaptor(const loom::NodeType& nodeType,
+                const std::map<std::string, loom::VariableSpec>& variableSpecs);
 
     QString name()    const override;
     QString caption() const override;
@@ -44,6 +47,14 @@ public:
 
     const loom::NodeType&     nodeType() const { return type; }
     const loom::NodeInstance& instance() const { return data; }
+
+    const std::map<std::string, loom::VariableSpec>& variableSpecs() const { return variables; }
+
+    // What a pin carries once the variable it follows has been chosen.
+    std::string resolvedType(const loom::PinSpec& pin) const;
+
+    // Rebuilds the editors, for when the declared variables have changed.
+    void refreshEditors() { rebuildEditors(); }
 
     // Everything except id and position, which stay with QtNodes.
     void setInstance(const loom::NodeInstance& instance);
@@ -78,6 +89,11 @@ public Q_SLOTS:
 
 private:
     const loom::PinSpec* pinAt(QtNodes::PortType portType, QtNodes::PortIndex index) const;
+
+    // The row a port sits on. The two are numbered apart because a pin that
+    // takes no wire still has a row of its own.
+    std::size_t rowOfPort(QtNodes::PortType portType, QtNodes::PortIndex index) const;
+
     void refreshPins();
     void rebuildEditors();
     QWidget* buildPinButtons();
@@ -90,9 +106,14 @@ private:
     const loom::NodeType& type;
     loom::NodeInstance    data;
 
+    const std::map<std::string, loom::VariableSpec>& variables;
+
     std::vector<loom::PinSpec> inputs;
     std::vector<loom::PinSpec> outputs;
     bool                       constant = false;
+
+    // Which of the inputs carry a port, in port order.
+    std::vector<std::size_t> inputPorts;
 
     std::vector<int>                rowHeights;
     QPointer<QWidget>               body;
@@ -101,6 +122,7 @@ private:
 };
 
 // One registry entry per node type, grouped by the category the node declares.
-std::shared_ptr<QtNodes::NodeDelegateModelRegistry> makeRegistry(const loom::NodeCatalog& catalog);
+std::shared_ptr<QtNodes::NodeDelegateModelRegistry> makeRegistry(
+    const loom::NodeCatalog& catalog, const std::map<std::string, loom::VariableSpec>& variableSpecs);
 
 #endif //LOOM_EDITOR_NODE_ADAPTOR_H

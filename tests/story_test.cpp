@@ -21,6 +21,7 @@ namespace
   "schemaVersion": 3,
   "meta": { "title": "Gate Test", "author": "KingBob" },
   "entry": "gate",
+  "variables": { "gold": { "type": "int", "value": 0 } },
   "graphs": [
     {
       "name": "gate",

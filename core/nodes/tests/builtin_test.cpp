@@ -94,7 +94,7 @@ TEST_CASE("a data input's default value matches the type it declares", "[nodes][
             if (loom::isNull(pin.defaultValue)) continue;
 
             INFO("node type: " << type->name() << ", pin: " << pin.name);
-            REQUIRE(loom::isCompatible(loom::typeName(pin.defaultValue), pin.type));
+            REQUIRE(loom::canHold(pin.type, loom::typeName(pin.defaultValue)));
         }
     }
 }

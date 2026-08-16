@@ -23,6 +23,89 @@ namespace loom
         {
             return std::to_string(node) + "/" + pin;
         }
+
+        // A wire between two pins that were compatible when it was drawn, and
+        // are not any more because a variable was rechosen or redeclared.
+        void checkFollowingWires(const Project& project, const NodeCatalog& catalog,
+                                 Diagnostics& out)
+        {
+            for (const Graph& graph : project.graphs)
+            {
+                for (const Connection& wire : graph.connections)
+                {
+                    const NodeInstance* from = graph.findNode(wire.from);
+                    const NodeInstance* to   = graph.findNode(wire.to);
+
+                    if (from == nullptr || to == nullptr) continue;
+
+                    const NodeType* fromType = catalog.find(from->type);
+                    const NodeType* toType   = catalog.find(to->type);
+
+                    if (fromType == nullptr || toType == nullptr) continue;
+
+                    const std::vector<PinSpec> fromPins = fromType->pins(from->extraPins);
+                    const std::vector<PinSpec> toPins   = toType->pins(to->extraPins);
+
+                    const PinSpec* source = findPin(fromPins, wire.fromPin);
+                    const PinSpec* target = findPin(toPins, wire.toPin);
+
+                    if (source == nullptr || target == nullptr) continue;
+                    if (source->typeFollows.empty() && target->typeFollows.empty()) continue;
+
+                    const std::string carried = project.resolvedPinType(*from, *source);
+                    const std::string wanted  = project.resolvedPinType(*to, *target);
+
+                    // No variable chosen yet means unknown, not wrong; the
+                    // reference itself is reported elsewhere.
+                    if (carried == PinType::Unset || wanted == PinType::Unset) continue;
+
+                    if (isCompatible(carried, wanted)) continue;
+
+                    out.error("this wire carries " + pinTypeLabel(carried) + " into " +
+                              pinTypeLabel(wanted) + ", which it no longer fits",
+                              graph.name, to->id, target->name);
+                }
+            }
+        }
+
+        // Every pin that names a global must name one the story declares. The
+        // pin's type says which pins those are, so no node type is named here.
+        void checkVariableReferences(const Project& project, const NodeCatalog& catalog,
+                                     Diagnostics& out)
+        {
+            for (const Graph& graph : project.graphs)
+            {
+                for (const NodeInstance& node : graph.nodes)
+                {
+                    const NodeType* type = catalog.find(node.type);
+                    if (type == nullptr) continue;
+
+                    for (const PinSpec& pin : type->pins(node.extraPins))
+                    {
+                        if (pin.type != PinType::VariableName) continue;
+
+                        const auto stored = node.pinValues.find(pin.name);
+
+                        const std::string named = stored == node.pinValues.end()
+                                                ? std::string()
+                                                : asString(stored->second);
+
+                        if (named.empty())
+                        {
+                            out.warning("no variable is chosen", graph.name, node.id, pin.name);
+                            continue;
+                        }
+
+                        // A warning, so the story still opens and can be fixed.
+                        if (project.variables.count(named) == 0)
+                        {
+                            out.warning("no variable called '" + named + "' is declared",
+                                        graph.name, node.id, pin.name);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     void validate(const Graph& graph, const NodeCatalog& catalog, Diagnostics& out)
@@ -69,7 +152,7 @@ namespace loom
 
                 if (isNull(stored.second)) continue;
 
-                if (!isCompatible(typeName(stored.second), pin->type))
+                if (!canHold(pin->type, typeName(stored.second)))
                 {
                     out.error("stored value is " + pinTypeLabel(typeName(stored.second)) +
                               ", pin expects " + pinTypeLabel(pin->type),
@@ -127,7 +210,11 @@ namespace loom
                 continue;
             }
 
-            if (!isCompatible(source->type, target->type))
+            // A pin that follows a variable is judged by the project, which is
+            // the only place the declared variables are known.
+            const bool follows = !source->typeFollows.empty() || !target->typeFollows.empty();
+
+            if (!follows && !isCompatible(source->type, target->type))
             {
                 out.error(pinTypeLabel(source->type) + " cannot connect to " + pinTypeLabel(target->type),
                           graph.name, connection.to, connection.toPin);
@@ -197,5 +284,8 @@ namespace loom
         {
             out.error("the entry graph '" + project.entry + "' does not exist", project.entry);
         }
+
+        checkVariableReferences(project, catalog, out);
+        checkFollowingWires(project, catalog, out);
     }
 }

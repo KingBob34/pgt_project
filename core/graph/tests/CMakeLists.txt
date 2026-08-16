@@ -1,5 +1,6 @@
 add_executable(loom_graph_tests
         compatibility_test.cpp
+        following_test.cpp
         validate_test.cpp
 )
 

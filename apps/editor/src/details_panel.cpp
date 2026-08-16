@@ -67,7 +67,8 @@ void DetailsPanel::setNode(NodeAdaptor* adaptor)
                                                  if (shown.isNull()) return;
 
                                                  shown->setPinValue(name, std::move(written));
-                                             });
+                                             },
+                                             shown->variableSpecs());
 
         if (made.widget == nullptr) continue;
 

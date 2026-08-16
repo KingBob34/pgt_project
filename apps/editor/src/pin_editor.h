@@ -1,7 +1,10 @@
 #ifndef LOOM_EDITOR_PIN_EDITOR_H
 #define LOOM_EDITOR_PIN_EDITOR_H
 #include <functional>
+#include <map>
+#include <string>
 
+#include "loom/graph/graph.h"
 #include "loom/graph/pin.h"
 #include "loom/value/value.h"
 
@@ -17,8 +20,10 @@ struct PinEditor
     int rows = 1;
 };
 
-// The editor for one pin. A null widget means the type has none.
-PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed);
+// The editor for one pin. A null widget means the type has none. The declared
+// variables are what a variableName pin offers; other types ignore them.
+PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed,
+                        const std::map<std::string, loom::VariableSpec>& variables = {});
 
 // Narrows an editor to the width a node on the canvas has room for.
 void fitToNode(QWidget* editor, const loom::PinSpec& pin);

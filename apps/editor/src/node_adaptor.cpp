@@ -56,8 +56,9 @@ namespace
     }
 }
 
-NodeAdaptor::NodeAdaptor(const loom::NodeType& nodeType)
-    : type(nodeType)
+NodeAdaptor::NodeAdaptor(const loom::NodeType& nodeType,
+                         const std::map<std::string, loom::VariableSpec>& variableSpecs)
+    : type(nodeType), variables(variableSpecs)
 {
     data.type = nodeType.name();
     data.extraPins = nodeType.minExtraPins();
@@ -69,14 +70,23 @@ void NodeAdaptor::refreshPins()
 {
     inputs.clear();
     outputs.clear();
+    inputPorts.clear();
     constant = true;
 
     for (const loom::PinSpec& pin : type.pins(data.extraPins))
     {
         if (pin.type == loom::PinType::Flow) constant = false;
 
-        if (pin.direction == loom::PinDirection::Input) inputs.push_back(pin);
-        else outputs.push_back(pin);
+        if (pin.direction != loom::PinDirection::Input)
+        {
+            outputs.push_back(pin);
+            continue;
+        }
+
+        // A variable is chosen from a list, so its row is given no connector.
+        if (pin.type != loom::PinType::VariableName) inputPorts.push_back(inputs.size());
+
+        inputs.push_back(pin);
     }
 
     rebuildEditors();
@@ -94,18 +104,32 @@ QString NodeAdaptor::caption() const
 
 unsigned int NodeAdaptor::nPorts(QtNodes::PortType portType) const
 {
-    const std::vector<loom::PinSpec>& pins = portType == QtNodes::PortType::In ? inputs : outputs;
+    const std::size_t count = portType == QtNodes::PortType::In ? inputPorts.size() : outputs.size();
 
-    return static_cast<unsigned int>(pins.size());
+    return static_cast<unsigned int>(count);
 }
 
 const loom::PinSpec* NodeAdaptor::pinAt(QtNodes::PortType portType, QtNodes::PortIndex index) const
 {
-    const std::vector<loom::PinSpec>& pins = portType == QtNodes::PortType::In ? inputs : outputs;
+    if (index < 0) return nullptr;
 
-    if (index < 0 || static_cast<std::size_t>(index) >= pins.size()) return nullptr;
+    const std::size_t at = static_cast<std::size_t>(index);
 
-    return &pins[static_cast<std::size_t>(index)];
+    if (portType == QtNodes::PortType::Out)
+    {
+        return at < outputs.size() ? &outputs[at] : nullptr;
+    }
+
+    return at < inputPorts.size() ? &inputs[inputPorts[at]] : nullptr;
+}
+
+std::size_t NodeAdaptor::rowOfPort(QtNodes::PortType portType, QtNodes::PortIndex index) const
+{
+    const std::size_t at = index < 0 ? 0 : static_cast<std::size_t>(index);
+
+    if (portType != QtNodes::PortType::In || at >= inputPorts.size()) return at;
+
+    return inputPorts[at];
 }
 
 void NodeAdaptor::setInstance(const loom::NodeInstance& instance)
@@ -175,14 +199,27 @@ std::string NodeAdaptor::pinName(QtNodes::PortType portType, QtNodes::PortIndex 
 
 QtNodes::PortIndex NodeAdaptor::portIndex(QtNodes::PortType portType, const std::string& pin) const
 {
-    const std::vector<loom::PinSpec>& pins = portType == QtNodes::PortType::In ? inputs : outputs;
-
-    for (std::size_t index = 0; index < pins.size(); ++index)
+    for (unsigned int index = 0; index < nPorts(portType); ++index)
     {
-        if (pins[index].name == pin) return static_cast<QtNodes::PortIndex>(index);
+        const loom::PinSpec* spec = pinAt(portType, static_cast<QtNodes::PortIndex>(index));
+
+        if (spec != nullptr && spec->name == pin) return static_cast<QtNodes::PortIndex>(index);
     }
 
     return QtNodes::InvalidPortIndex;
+}
+
+std::string NodeAdaptor::resolvedType(const loom::PinSpec& pin) const
+{
+    if (pin.typeFollows.empty()) return pin.type;
+
+    const auto chosen = data.pinValues.find(pin.typeFollows);
+    if (chosen == data.pinValues.end()) return loom::PinType::Unset;
+
+    const auto declared = variables.find(loom::asString(chosen->second));
+    if (declared == variables.end()) return loom::PinType::Unset;
+
+    return loom::pinTypeOfVariable(declared->second.type);
 }
 
 QtNodes::NodeDataType NodeAdaptor::dataType(QtNodes::PortType portType, QtNodes::PortIndex index) const
@@ -190,7 +227,9 @@ QtNodes::NodeDataType NodeAdaptor::dataType(QtNodes::PortType portType, QtNodes:
     const loom::PinSpec* pin = pinAt(portType, index);
     if (pin == nullptr) return {};
 
-    return { toQt(pin->type), toQt(loom::pinTypeLabel(pin->type)) };
+    const std::string type = resolvedType(*pin);
+
+    return { toQt(type), toQt(loom::pinTypeLabel(type)) };
 }
 
 QString NodeAdaptor::portCaption(QtNodes::PortType portType, QtNodes::PortIndex index) const
@@ -299,13 +338,19 @@ void NodeAdaptor::rebuildEditors()
 
     for (const loom::PinSpec& pin : editablePins())
     {
+        // A chosen variable decides another pin's type, so the ports repaint.
+        const bool governs = pin.type == loom::PinType::VariableName;
+
         const PinEditor made = makePinEditor(pin, pinValue(pin),
-                                             [this, name = pin.name](loom::Value value)
+                                             [this, name = pin.name, governs](loom::Value value)
                                              {
                                                  data.pinValues[name] = std::move(value);
 
                                                  Q_EMIT pinValueTyped(QString::fromStdString(name));
-                                             });
+
+                                                 if (governs) Q_EMIT requestNodeUpdate();
+                                             },
+                                             variables);
 
         QWidget* editor = made.widget;
 
@@ -374,20 +419,24 @@ bool NodeAdaptor::edited(QtNodes::PortType portType) const
 
 int NodeAdaptor::rowHeight(QtNodes::PortType portType, QtNodes::PortIndex index) const
 {
-    if (!edited(portType) || index >= rowHeights.size()) return portRowHeight();
+    const std::size_t row = rowOfPort(portType, index);
 
-    return rowHeights[index];
+    if (!edited(portType) || row >= rowHeights.size()) return portRowHeight();
+
+    return rowHeights[row];
 }
 
 int NodeAdaptor::rowTop(QtNodes::PortType portType, QtNodes::PortIndex index) const
 {
-    if (!edited(portType)) return static_cast<int>(index) * portRowHeight();
+    const std::size_t row = rowOfPort(portType, index);
+
+    if (!edited(portType)) return static_cast<int>(row) * portRowHeight();
 
     int top = 0;
 
-    for (QtNodes::PortIndex row = 0; row < index && row < rowHeights.size(); ++row)
+    for (std::size_t at = 0; at < row && at < rowHeights.size(); ++at)
     {
-        top += rowHeights[row];
+        top += rowHeights[at];
     }
 
     return top;
@@ -447,14 +496,16 @@ void NodeAdaptor::inputConnectionDeleted(const QtNodes::ConnectionId& connection
     setWired(pinName(QtNodes::PortType::In, connection.inPortIndex), false);
 }
 
-std::shared_ptr<QtNodes::NodeDelegateModelRegistry> makeRegistry(const loom::NodeCatalog& catalog)
+std::shared_ptr<QtNodes::NodeDelegateModelRegistry> makeRegistry(
+    const loom::NodeCatalog& catalog, const std::map<std::string, loom::VariableSpec>& variableSpecs)
 {
     auto registry = std::make_shared<QtNodes::NodeDelegateModelRegistry>();
 
     for (const loom::NodeType* type : catalog.all())
     {
-        registry->registerModel<NodeAdaptor>([type] { return std::make_unique<NodeAdaptor>(*type); },
-                                             toQt(type->category()));
+        registry->registerModel<NodeAdaptor>(
+            [type, &variableSpecs] { return std::make_unique<NodeAdaptor>(*type, variableSpecs); },
+            toQt(type->category()));
     }
 
     return registry;

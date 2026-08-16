@@ -63,6 +63,10 @@ namespace loom
         std::vector<std::string> choices;   // the allowed values of a Choice
     };
 
+    // The pin type a variable of this declared type travels as. The containers
+    // have no pin of their own, so they travel as Any.
+    std::string pinTypeOfVariable(const std::string& variableType);
+
     // A whole work: several graphs plus the one that starts.
     struct Project
     {
@@ -72,6 +76,10 @@ namespace loom
         std::vector<Graph>                  graphs;
 
         const Graph* findGraph(const std::string& name) const;
+
+        // What a pin actually carries: one that follows a variable is whatever
+        // that variable was declared to be, or Unset until one is chosen.
+        std::string resolvedPinType(const NodeInstance& node, const PinSpec& pin) const;
     };
 }
 

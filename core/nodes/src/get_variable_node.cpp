@@ -8,12 +8,12 @@
 //
 //  Inputs
 //      in            Flow
-//      name          String    the variable to read
+//      name          Variable  the declared global to read; no wire reaches it
 //
 //  Outputs
 //      out           Flow      taken when the variable exists
 //      notFound      Flow      taken when it does not
-//      value         Any       its contents; not written on notFound
+//      value         *         its contents, typed as the variable was declared
 //==============================================================================
 
 namespace loom
@@ -30,10 +30,10 @@ namespace loom
             std::vector<PinSpec> pins(int) const override
             {
                 return { flowIn(),
-                         dataIn("name", "Name", PinType::String, Value("")),
+                         variableIn("name", "Variable"),
                          flowOut("out", "Found"),
                          flowOut("notFound", "Not Found"),
-                         dataOut("value", "Value", PinType::Any) };
+                         followsOut("value", "Value", "name") };
             }
 
             FlowResult execute(ExecutionContext& context) const override

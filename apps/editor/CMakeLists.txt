@@ -28,6 +28,7 @@ add_executable(loom_editor WIN32
         src/graph_document.cpp
         src/pin_editor.cpp
         src/details_panel.cpp
+        src/value_tree.cpp
 )
 
 set_target_properties(loom_editor PROPERTIES OUTPUT_NAME LoomEngine)

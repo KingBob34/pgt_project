@@ -3,13 +3,12 @@
 //==============================================================================
 //  Set Variable                                                 Variables
 //------------------------------------------------------------------------------
-//  Stores a value under a name. Names are plain strings and need no prior
-//  declaration: writing to a name nobody has used yet creates it.
+//  Stores a value in one of the globals the story declares.
 //
 //  Inputs
 //      in            Flow
-//      name          String    the variable to write
-//      value         Any       what to store
+//      name          Variable  the declared global to write; no wire reaches it
+//      value         *         what to store, typed as the variable was declared
 //
 //  Outputs
 //      out           Flow
@@ -29,8 +28,8 @@ namespace loom
             std::vector<PinSpec> pins(int) const override
             {
                 return { flowIn(),
-                         dataIn("name", "Name", PinType::String, Value("")),
-                         dataIn("value", "Value", PinType::Any),
+                         variableIn("name", "Variable"),
+                         followsIn("value", "Value", "name"),
                          flowOut() };
             }
 

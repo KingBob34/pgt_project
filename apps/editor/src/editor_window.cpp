@@ -36,6 +36,7 @@
 #include "graph_view.h"
 #include "node_adaptor.h"
 #include "node_geometry.h"
+#include "value_tree.h"
 
 #include "loom/graph/validate.h"
 #include "loom/nodes/builtin.h"
@@ -107,7 +108,7 @@ EditorWindow::~EditorWindow()
 
 void EditorWindow::buildCanvas()
 {
-    registry = makeRegistry(catalog);
+    registry = makeRegistry(catalog, variableSpecs);
     model    = std::make_unique<GraphModel>(registry);
 
     scene = new GraphScene(*model, catalog, this);
@@ -252,11 +253,116 @@ QWidget* EditorWindow::buildPanel()
     panel->setDocumentMode(true);
 
     details = new DetailsPanel;
+    values  = new ValueTree;
 
-    panel->addTab(new QWidget, "Variables");
+    connect(values, &ValueTree::changed, this, &EditorWindow::syncVariableNames);
+    connect(values, &ValueTree::renamed, this, &EditorWindow::renameVariable);
+    connect(values, &ValueTree::removed, this, &EditorWindow::reportVariableUses);
+
+    panel->addTab(values, "Variables");
     panel->addTab(details, "Details");
 
     return panel;
+}
+
+void EditorWindow::syncVariableNames()
+{
+    std::map<std::string, loom::VariableSpec> declared = values->variables();
+
+    // Only the names and types reach a node; a changed starting value does not
+    // need every menu on the canvas rebuilt.
+    bool same = declared.size() == variableSpecs.size();
+
+    for (auto mine = declared.begin(), theirs = variableSpecs.begin();
+         same && mine != declared.end(); ++mine, ++theirs)
+    {
+        same = mine->first == theirs->first && mine->second.type == theirs->second.type;
+    }
+
+    if (same) return;
+
+    variableSpecs = std::move(declared);
+
+    for (QtNodes::NodeId id : model->allNodeIds())
+    {
+        if (NodeAdaptor* node = model->delegateModel<NodeAdaptor>(id)) node->refreshEditors();
+    }
+}
+
+void EditorWindow::forEachVariableUse(const std::string& named, const VariableUse& visit)
+{
+    // The canvas is ahead of the project, and nodes added since the last save
+    // would otherwise be missed.
+    project.graphs[editing] = document->graph();
+
+    for (std::size_t at = 0; at < project.graphs.size(); ++at)
+    {
+        loom::Graph& graph = project.graphs[at];
+
+        for (loom::NodeInstance& node : graph.nodes)
+        {
+            const loom::NodeType* type = catalog.find(node.type);
+            if (type == nullptr) continue;
+
+            for (const loom::PinSpec& pin : type->pins(node.extraPins))
+            {
+                if (pin.type != loom::PinType::VariableName) continue;
+
+                const auto stored = node.pinValues.find(pin.name);
+
+                if (stored == node.pinValues.end()) continue;
+                if (loom::asString(stored->second) != named) continue;
+
+                visit(at, graph, node, pin);
+            }
+        }
+    }
+}
+
+void EditorWindow::renameVariable(const QString& before, const QString& after)
+{
+    const std::string now = after.toStdString();
+
+    log("Renamed the variable '" + before + "' to '" + after + "'");
+
+    forEachVariableUse(before.toStdString(),
+                       [&](std::size_t at, loom::Graph& graph, loom::NodeInstance& node,
+                           const loom::PinSpec& pin)
+    {
+        if (at == editing)
+        {
+            NodeAdaptor* live =
+                model->delegateModel<NodeAdaptor>(static_cast<QtNodes::NodeId>(node.id));
+
+            if (live != nullptr) live->setPinValue(pin.name, now);
+        }
+
+        node.pinValues[pin.name] = now;
+
+        logAt("  Updated " + nodeLabel(graph.name, node.id) + " in scene '" +
+              QString::fromStdString(graph.name) + "'",
+              graph.name, node.id);
+    });
+}
+
+void EditorWindow::reportVariableUses(const QString& name)
+{
+    int found = 0;
+
+    // The nodes keep the name they were given; only the console says anything.
+    forEachVariableUse(name.toStdString(),
+                       [&](std::size_t, loom::Graph& graph, loom::NodeInstance& node,
+                           const loom::PinSpec&)
+    {
+        if (found++ == 0)
+        {
+            log("The variable '" + name + "' is gone, but it is still named by:", true);
+        }
+
+        logAt("  " + nodeLabel(graph.name, node.id) + " in scene '" +
+              QString::fromStdString(graph.name) + "'",
+              graph.name, node.id, true);
+    });
 }
 
 void EditorWindow::buildDocks()
@@ -607,6 +713,9 @@ void EditorWindow::newStory()
 
     syncDetails();
 
+    values->setVariables(project.variables);
+    syncVariableNames();
+
     setStoryPath(QString());
     refreshScenes();
 }
@@ -672,6 +781,10 @@ void EditorWindow::openStory(const QString& path)
         if (project.graphs[index].name == project.entry) editing = index;
     }
 
+    // Before the canvas, whose nodes read the names as they build their menus.
+    values->setVariables(project.variables);
+    syncVariableNames();
+
     showScene(project.graphs[editing]);
 
     setStoryPath(path);
@@ -697,6 +810,7 @@ bool EditorWindow::saveStoryAs()
 bool EditorWindow::writeProjectTo(const QString& path)
 {
     project.graphs[editing] = document->graph();
+    project.variables = values->variables();
 
     QFile file(path);
 

@@ -196,7 +196,7 @@ namespace loom
         if (const Value* meta = objectGet(document, "meta")) readMeta(*meta, out.meta);
         if (const Value* entry = objectGet(document, "entry")) out.entry = asString(*entry);
 
-        // A file older than the variables block simply declares none.
+        // Optional: a story with no globals writes no block at all.
         if (const Value* variables = objectGet(document, "variables"))
         {
             for (const std::string& name : objectKeys(*variables))

@@ -1,5 +1,11 @@
 {
   "entry": "gate",
+  "variables": {
+    "gold": {
+      "type": "int",
+      "value": 0
+    }
+  },
   "graphs": [
     {
       "connections": [

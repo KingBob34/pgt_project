@@ -18,6 +18,13 @@ namespace loom
     // A String input that holds prose.
     PinSpec longTextIn(std::string name, std::string label, Value defaultValue = Value(""));
 
+    // An input naming one of the story's declared globals.
+    PinSpec variableIn(std::string name, std::string label);
+
+    // Pins whose type is that of the variable chosen on the 'follows' pin.
+    PinSpec followsIn (std::string name, std::string label, std::string follows);
+    PinSpec followsOut(std::string name, std::string label, std::string follows);
+
     // Opaque white: the starting colour of every style pin.
     Value defaultColor();
 

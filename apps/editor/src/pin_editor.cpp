@@ -3,7 +3,10 @@
 #include <map>
 #include <string>
 
+#include <algorithm>
+
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QPlainTextEdit>
@@ -20,6 +23,7 @@ namespace
     // An editor is only as wide as the value it holds; the caption is beside it.
     constexpr int kNumberWidth = 88;
     constexpr int kTextWidth = 140;
+    constexpr int kVariableWidth = 150;
 
     constexpr int kParagraphWidth = 240;
     constexpr int kParagraphRows = 4;
@@ -89,6 +93,35 @@ namespace
         return { field, 1 };
     }
 
+    // A name the story no longer declares is still shown, so the author sees
+    // what the node is asking for rather than a blank.
+    PinEditor makeVariable(const loom::Value& value, const PinChanged& changed,
+                           const std::map<std::string, loom::VariableSpec>& variables)
+    {
+        const QString chosen = QString::fromStdString(loom::asString(value));
+
+        QComboBox* box = new QComboBox;
+        box->addItem(QString(), QString());
+
+        for (const auto& entry : variables)
+        {
+            const QString name = QString::fromStdString(entry.first);
+
+            box->addItem(name + "  (" + QString::fromStdString(entry.second.type) + ")", name);
+        }
+
+        if (!chosen.isEmpty() && box->findData(chosen) < 0) box->addItem(chosen + " (missing)", chosen);
+
+        box->setCurrentIndex(std::max(0, box->findData(chosen)));
+
+        QObject::connect(box, &QComboBox::currentIndexChanged, box, [box, changed](int)
+        {
+            changed(box->currentData().toString().toStdString());
+        });
+
+        return { box, 1 };
+    }
+
     using Factory = PinEditor (*)(const loom::PinSpec&, const loom::Value&, const PinChanged&);
 
     // The pin types an author may type into. Anything else is fed by a wire.
@@ -105,8 +138,11 @@ namespace
     }
 }
 
-PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed)
+PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed,
+                        const std::map<std::string, loom::VariableSpec>& variables)
 {
+    if (pin.type == loom::PinType::VariableName) return makeVariable(value, changed, variables);
+
     const auto factory = editableTypes().find(pin.type);
 
     if (factory == editableTypes().end()) return {};
@@ -117,6 +153,12 @@ PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinC
 void fitToNode(QWidget* editor, const loom::PinSpec& pin)
 {
     if (editor == nullptr) return;
+
+    if (pin.type == loom::PinType::VariableName)
+    {
+        editor->setFixedWidth(kVariableWidth);
+        return;
+    }
 
     if (pin.type == loom::PinType::String)
     {
@@ -165,6 +207,17 @@ bool showInEditor(QWidget* editor, const loom::Value& value)
     if (QLineEdit* field = qobject_cast<QLineEdit*>(editor))
     {
         field->setText(QString::fromStdString(loom::asString(value)));
+        return true;
+    }
+
+    if (QComboBox* box = qobject_cast<QComboBox*>(editor))
+    {
+        const int found = box->findData(QString::fromStdString(loom::asString(value)));
+
+        // A name the list does not offer needs the whole editor built again.
+        if (found < 0) return false;
+
+        box->setCurrentIndex(found);
         return true;
     }
 

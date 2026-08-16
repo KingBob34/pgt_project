@@ -32,6 +32,24 @@ namespace loom
                  PinType::String, std::move(defaultValue), true };
     }
 
+    PinSpec variableIn(std::string name, std::string label)
+    {
+        return { std::move(name), std::move(label), PinDirection::Input,
+                 PinType::VariableName, Value("") };
+    }
+
+    PinSpec followsIn(std::string name, std::string label, std::string follows)
+    {
+        return { std::move(name), std::move(label), PinDirection::Input,
+                 PinType::Unset, Value(), false, std::move(follows) };
+    }
+
+    PinSpec followsOut(std::string name, std::string label, std::string follows)
+    {
+        return { std::move(name), std::move(label), PinDirection::Output,
+                 PinType::Unset, Value(), false, std::move(follows) };
+    }
+
     Value defaultColor()
     {
         Value color = Value::object();
