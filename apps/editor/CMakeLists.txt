@@ -16,7 +16,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(QtNodes)
 
-add_executable(loom_editor WIN32
+add_executable(LoomEngine WIN32
         src/main.cpp
         src/editor_window.cpp
         src/node_adaptor.cpp
@@ -31,9 +31,7 @@ add_executable(loom_editor WIN32
         src/value_tree.cpp
 )
 
-set_target_properties(loom_editor PROPERTIES OUTPUT_NAME LoomEngine)
-
-target_link_libraries(loom_editor PRIVATE
+target_link_libraries(LoomEngine PRIVATE
         Qt6::Widgets
         QtNodes
         loom_serialization
