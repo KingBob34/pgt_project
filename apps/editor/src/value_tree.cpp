@@ -153,19 +153,21 @@ ValueTree::ValueTree(QWidget* parent)
             }
         }
 
-        // Only a declared variable is named anywhere else; a nested row is not.
-        if (column == 0 && parent == nullptr)
+        // A nested field is named by its path, so a rename anywhere but inside
+        // a list is worth reporting.
+        if (column == 0 && named)
         {
-            const QString before = row->data(0, Qt::UserRole + 1).toString();
-            const QString after  = row->text(0);
+            const QString was   = row->data(0, Qt::UserRole + 1).toString();
+            const QString now   = row->text(0);
+            const QString ahead = parent == nullptr ? QString() : pathOf(parent) + ".";
 
-            if (!before.isEmpty() && before != after)
+            if (!was.isEmpty() && was != now)
             {
                 filling = true;
-                row->setData(0, Qt::UserRole + 1, after);
+                row->setData(0, Qt::UserRole + 1, now);
                 filling = false;
 
-                Q_EMIT renamed(before, after);
+                Q_EMIT renamed(ahead + was, ahead + now);
             }
         }
 
@@ -438,7 +440,10 @@ void ValueTree::removeVariable()
     if (row == nullptr) return;
 
     QTreeWidgetItem* parent = row->parent();
-    const QString    gone   = parent == nullptr ? row->text(0) : QString();
+
+    // A list numbers its own rows, so nothing outside can be naming one.
+    const bool named = parent == nullptr || typeOf(parent) != loom::VariableType::List;
+    const QString gone = named ? pathOf(row) : QString();
 
     if (parent == nullptr) delete tree->takeTopLevelItem(tree->indexOfTopLevelItem(row));
     else                   delete parent->takeChild(parent->indexOfChild(row));
@@ -463,6 +468,18 @@ int ValueTree::siblingCount(QTreeWidgetItem* parent) const
 QTreeWidgetItem* ValueTree::sibling(QTreeWidgetItem* parent, int at) const
 {
     return parent == nullptr ? tree->topLevelItem(at) : parent->child(at);
+}
+
+QString ValueTree::pathOf(QTreeWidgetItem* row) const
+{
+    QString path = row->text(0);
+
+    for (QTreeWidgetItem* above = row->parent(); above != nullptr; above = above->parent())
+    {
+        path = above->text(0) + "." + path;
+    }
+
+    return path;
 }
 
 std::string ValueTree::uniqueName(QTreeWidgetItem* parent, const std::string& wanted) const

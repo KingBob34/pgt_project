@@ -7,6 +7,9 @@ class NodeAdaptor;
 // The vertical distance from one port to the next, and one editor row's height.
 int portRowHeight();
 
+// The breathing room left between one editor row and the next.
+int portRowGap();
+
 // Node sizes, with a floor under the width.
 class NodeGeometry : public QtNodes::DefaultHorizontalNodeGeometry
 {

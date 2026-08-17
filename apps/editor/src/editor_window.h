@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <QMainWindow>
@@ -96,6 +97,10 @@ private:
 
     // Declared first: the registry hands a reference to it to every node.
     std::map<std::string, loom::VariableSpec> variableSpecs;
+
+    // What the nodes are currently offering, each name with its type, to tell a
+    // stale menu from a fresh one.
+    std::vector<std::pair<std::string, std::string>> offeredMenu;
 
     std::shared_ptr<QtNodes::NodeDelegateModelRegistry> registry;
     std::unique_ptr<GraphModel>                         model;

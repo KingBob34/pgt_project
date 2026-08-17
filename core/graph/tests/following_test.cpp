@@ -111,12 +111,14 @@ TEST_CASE("a pin whose variable is not declared has no type yet", "[graph][follo
     REQUIRE(project.resolvedPinType(project.graphs[0].nodes[0], value) == loom::PinType::Unset);
 }
 
-TEST_CASE("a list travels as any, having no pin of its own", "[graph][following]")
+TEST_CASE("a declared type decides the pin it travels on", "[graph][following]")
 {
-    REQUIRE(loom::pinTypeOfVariable(loom::VariableType::List) == loom::PinType::Any);
-    REQUIRE(loom::pinTypeOfVariable(loom::VariableType::Group) == loom::PinType::Any);
-    REQUIRE(loom::pinTypeOfVariable(loom::VariableType::Choice) == loom::PinType::String);
     REQUIRE(loom::pinTypeOfVariable(loom::VariableType::Int) == loom::PinType::Int);
+    REQUIRE(loom::pinTypeOfVariable(loom::VariableType::List) == loom::PinType::List);
+    REQUIRE(loom::pinTypeOfVariable(loom::VariableType::Choice) == loom::PinType::String);
+
+    // A group has no pin, and no node is ever offered one to begin with.
+    REQUIRE(loom::pinTypeOfVariable(loom::VariableType::Group) == loom::PinType::Any);
 }
 
 TEST_CASE("a wire that matches the declared type passes", "[graph][following]")

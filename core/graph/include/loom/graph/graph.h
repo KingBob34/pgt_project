@@ -67,6 +67,15 @@ namespace loom
     // have no pin of their own, so they travel as Any.
     std::string pinTypeOfVariable(const std::string& variableType);
 
+    // Every name a node may choose, sorted: the declared variables and, joined
+    // by dots, the fields nested inside them. A list ends the walk, since its
+    // places are numbered and the numbers move.
+    std::vector<std::string> variablePaths(const std::map<std::string, VariableSpec>& variables);
+
+    // The declared type at one of those names, or empty when nothing is there.
+    std::string declaredTypeAt(const std::map<std::string, VariableSpec>& variables,
+                               const std::string& path);
+
     // A whole work: several graphs plus the one that starts.
     struct Project
     {

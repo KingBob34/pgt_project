@@ -14,11 +14,18 @@ namespace
 
     // DefaultHorizontalNodeGeometry's own spacing, which it does not expose.
     constexpr int kPortSpacing = 10;
+
+    constexpr int kRowGap = 6;
 }
 
 int portRowHeight()
 {
     return QFontMetrics(QFont()).height() + kPortSpacing;
+}
+
+int portRowGap()
+{
+    return kRowGap;
 }
 
 void NodeGeometry::recomputeSize(QtNodes::NodeId nodeId) const

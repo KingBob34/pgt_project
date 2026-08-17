@@ -134,3 +134,115 @@ TEST_CASE("a declared list holds whatever the author nested in it", "[runtime][v
     REQUIRE(loom::isList(stored));
     REQUIRE(loom::asString(*loom::objectGet(stored.front(), "name")) == "sword");
 }
+
+namespace
+{
+    // pet: { dog: { health: 100, name: "Rex" } }
+    loom::Value pets()
+    {
+        loom::Value dog = loom::Value::object();
+        dog["health"] = 100;
+        dog["name"] = "Rex";
+
+        loom::Value pet = loom::Value::object();
+        pet["dog"] = dog;
+
+        return pet;
+    }
+
+    long long healthOf(const loom::Value& pet)
+    {
+        return loom::asInt(*loom::objectGet(*loom::objectGet(pet, "dog"), "health"));
+    }
+}
+
+TEST_CASE("a write reaches a field nested inside a group", "[runtime][variables]")
+{
+    loom::Project project = projectWriting(loom::Value(60));
+    declare(project, "pet", loom::VariableType::Group, pets());
+
+    project.graphs[0].nodes[1].pinValues["target"] = "pet.dog.health";
+
+    TestHost host;
+    const loom::SaveState state = play(project, host);
+
+    REQUIRE_FALSE(complained(host));
+    REQUIRE(healthOf(state.variables.at("pet")) == 60);
+
+    // Its neighbour is left where it was.
+    REQUIRE(loom::asString(*loom::objectGet(*loom::objectGet(state.variables.at("pet"), "dog"),
+                                            "name")) == "Rex");
+}
+
+TEST_CASE("a nested field is judged by the type it already holds", "[runtime][variables]")
+{
+    loom::Project project = projectWriting(loom::Value("badly"));
+    declare(project, "pet", loom::VariableType::Group, pets());
+
+    project.graphs[0].nodes[1].pinValues["target"] = "pet.dog.health";
+
+    TestHost host;
+    const loom::SaveState state = play(project, host);
+
+    REQUIRE(complained(host));
+
+    // Reported, then written all the same.
+    REQUIRE(loom::asString(*loom::objectGet(*loom::objectGet(state.variables.at("pet"), "dog"),
+                                            "health")) == "badly");
+}
+
+TEST_CASE("a write to a field that was never declared changes nothing", "[runtime][variables]")
+{
+    loom::Project project = projectWriting(loom::Value(1));
+    declare(project, "pet", loom::VariableType::Group, pets());
+
+    project.graphs[0].nodes[1].pinValues["target"] = "pet.cat.health";
+
+    TestHost host;
+    const loom::SaveState state = play(project, host);
+
+    REQUIRE(complained(host));
+    REQUIRE(healthOf(state.variables.at("pet")) == 100);
+    REQUIRE(loom::objectGet(state.variables.at("pet"), "cat") == nullptr);
+}
+
+TEST_CASE("a read follows the same path", "[runtime][variables]")
+{
+    loom::Graph graph;
+    graph.name = "scene";
+    graph.nodes = { stub::node(1, "start"), stub::node(2, "recall"), stub::node(3, "end") };
+    graph.nodes[1].pinValues["source"] = "pet.dog.name";
+    graph.connections = { { 1, "out", 2, "in" }, { 2, "out", 3, "in" } };
+
+    loom::Project project;
+    project.entry = "scene";
+    project.graphs.push_back(graph);
+
+    declare(project, "pet", loom::VariableType::Group, pets());
+
+    TestHost host;
+    play(project, host);
+
+    REQUIRE(host.lines == std::vector<std::string>{ "Rex" });
+}
+
+TEST_CASE("a read of a field that is not there takes the second route",
+          "[runtime][variables]")
+{
+    loom::Graph graph;
+    graph.name = "scene";
+    graph.nodes = { stub::node(1, "start"), stub::node(2, "recall"), stub::node(3, "end") };
+    graph.nodes[1].pinValues["source"] = "pet.cat.name";
+    graph.connections = { { 1, "out", 2, "in" }, { 2, "missing", 3, "in" } };
+
+    loom::Project project;
+    project.entry = "scene";
+    project.graphs.push_back(graph);
+
+    declare(project, "pet", loom::VariableType::Group, pets());
+
+    TestHost host;
+    play(project, host);
+
+    REQUIRE(host.lines.empty());
+}

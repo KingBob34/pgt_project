@@ -103,11 +103,14 @@ namespace
         QComboBox* box = new QComboBox;
         box->addItem(QString(), QString());
 
-        for (const auto& entry : variables)
+        // Every declared variable and every field nested in one, so a node can
+        // reach into a group without a walk of its own.
+        for (const std::string& path : loom::variablePaths(variables))
         {
-            const QString name = QString::fromStdString(entry.first);
+            const QString name = QString::fromStdString(path);
+            const QString type = QString::fromStdString(loom::declaredTypeAt(variables, path));
 
-            box->addItem(name + "  (" + QString::fromStdString(entry.second.type) + ")", name);
+            box->addItem(name + "  (" + type + ")", name);
         }
 
         if (!chosen.isEmpty() && box->findData(chosen) < 0) box->addItem(chosen + " (missing)", chosen);

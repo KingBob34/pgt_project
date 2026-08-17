@@ -15,6 +15,13 @@ namespace loom
     const Value* descend(const Value& root,
                          const std::vector<std::string>& segments,
                          std::size_t from = 0);
+
+    // Writes at the end of the same walk. Creates nothing along the way, so a
+    // path that was never declared is refused rather than brought into being.
+    bool assign(Value& root,
+                const std::vector<std::string>& segments,
+                Value value,
+                std::size_t from = 0);
 }
 
 #endif //LOOM_VALUE_PATH_H

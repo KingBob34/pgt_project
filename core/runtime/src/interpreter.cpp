@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "loom/value/inspect.h"
+#include "loom/value/path.h"
 
 namespace loom
 {
@@ -92,28 +93,66 @@ namespace loom
 
             bool readVariable(const std::string& name, Value& out) const override
             {
-                const auto found = variables.find(name);
+                const std::vector<std::string> segments = splitPath(name);
+
+                const auto found = variables.find(segments.front());
                 if (found == variables.end()) return false;
 
-                out = found->second;
+                if (segments.size() == 1)
+                {
+                    out = found->second;
+                    return true;
+                }
+
+                const Value* field = descend(found->second, segments, 1);
+                if (field == nullptr) return false;
+
+                out = *field;
                 return true;
             }
 
             void writeVariable(const std::string& name, Value value) override
             {
-                const auto spec = declared.find(name);
+                const std::string wanted = declaredTypeAt(declared, name);
 
                 // Said out loud, then written anyway: the author's data is never
                 // second-guessed, only reported on.
-                if (spec != declared.end() && !matchesType(spec->second.type, value))
+                if (!wanted.empty() && !matchesType(wanted, value))
                 {
-                    reportFault(hostRef, "the variable '" + name + "' is declared as " +
-                                         spec->second.type + " but node " +
-                                         std::to_string(node.id) + " in scene '" + graph.name +
-                                         "' wrote " + typeName(value) + " into it");
+                    reportFault(hostRef, "the variable '" + name + "' is declared as " + wanted +
+                                         " but node " + std::to_string(node.id) + " in scene '" +
+                                         graph.name + "' wrote " + typeName(value) + " into it");
                 }
 
-                variables[name] = std::move(value);
+                const std::vector<std::string> segments = splitPath(name);
+
+                const auto found = variables.find(segments.front());
+
+                if (found == variables.end())
+                {
+                    // A path can only reach into something that is already there.
+                    if (segments.size() > 1)
+                    {
+                        reportFault(hostRef, "there is no variable called '" + segments.front() +
+                                             "' to write '" + name + "' into");
+                        return;
+                    }
+
+                    variables[name] = std::move(value);
+                    return;
+                }
+
+                if (segments.size() == 1)
+                {
+                    found->second = std::move(value);
+                    return;
+                }
+
+                if (!assign(found->second, segments, std::move(value), 1))
+                {
+                    reportFault(hostRef, "the variable '" + segments.front() +
+                                         "' has no field at '" + name + "'");
+                }
             }
 
             Host& host() override { return hostRef; }

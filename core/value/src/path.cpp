@@ -31,4 +31,20 @@ namespace loom
         }
         return current;
     }
+
+    bool assign(Value& root, const std::vector<std::string>& segments, Value value, std::size_t from)
+    {
+        if (from >= segments.size())
+        {
+            root = std::move(value);
+            return true;
+        }
+
+        if (!isObject(root)) return false;
+
+        const auto found = root.find(segments[from]);
+        if (found == root.end()) return false;
+
+        return assign(*found, segments, std::move(value), from + 1);
+    }
 }

@@ -97,7 +97,7 @@ namespace loom
                         }
 
                         // A warning, so the story still opens and can be fixed.
-                        if (project.variables.count(named) == 0)
+                        if (declaredTypeAt(project.variables, named).empty())
                         {
                             out.warning("no variable called '" + named + "' is declared",
                                         graph.name, node.id, pin.name);

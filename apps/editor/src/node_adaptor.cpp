@@ -216,10 +216,10 @@ std::string NodeAdaptor::resolvedType(const loom::PinSpec& pin) const
     const auto chosen = data.pinValues.find(pin.typeFollows);
     if (chosen == data.pinValues.end()) return loom::PinType::Unset;
 
-    const auto declared = variables.find(loom::asString(chosen->second));
-    if (declared == variables.end()) return loom::PinType::Unset;
+    const std::string declared =
+        loom::declaredTypeAt(variables, loom::asString(chosen->second));
 
-    return loom::pinTypeOfVariable(declared->second.type);
+    return declared.empty() ? loom::PinType::Unset : loom::pinTypeOfVariable(declared);
 }
 
 QtNodes::NodeDataType NodeAdaptor::dataType(QtNodes::PortType portType, QtNodes::PortIndex index) const
@@ -306,7 +306,7 @@ QWidget* NodeAdaptor::embeddedWidget()
 
         QVBoxLayout* column = new QVBoxLayout(body);
         column->setContentsMargins(0, 0, 0, 0);
-        column->setSpacing(0);
+        column->setSpacing(portRowGap());
 
         rebuildEditors();
     }
@@ -375,8 +375,9 @@ void NodeAdaptor::rebuildEditors()
         rowHeights.push_back(height);
     }
 
+    // Each row is followed by the gap the layout puts after it.
     int total = 0;
-    for (int height : rowHeights) total += height;
+    for (int height : rowHeights) total += height + portRowGap();
 
     if (type.maxExtraPins() > type.minExtraPins())
     {
@@ -436,7 +437,7 @@ int NodeAdaptor::rowTop(QtNodes::PortType portType, QtNodes::PortIndex index) co
 
     for (std::size_t at = 0; at < row && at < rowHeights.size(); ++at)
     {
-        top += rowHeights[at];
+        top += rowHeights[at] + portRowGap();
     }
 
     return top;

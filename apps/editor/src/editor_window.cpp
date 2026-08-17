@@ -47,12 +47,12 @@
 namespace
 {
     // Deployed side by side; in a build tree each target has its own directory.
-    QString findPlayer()
+    QString findGame()
     {
 #ifdef Q_OS_WIN
-        const QString name = "loom_player.exe";
+        const QString name = "LoomGame.exe";
 #else
-        const QString name = "loom_player";
+        const QString name = "LoomGame";
 #endif
 
         const QString here = QCoreApplication::applicationDirPath();
@@ -269,19 +269,21 @@ void EditorWindow::syncVariableNames()
 {
     std::map<std::string, loom::VariableSpec> declared = values->variables();
 
-    // Only the names and types reach a node; a changed starting value does not
-    // need every menu on the canvas rebuilt.
-    bool same = declared.size() == variableSpecs.size();
+    // A node offers a name and the type beside it, and takes the pin type from
+    // that same type, so both decide whether the menus are stale. Typing a new
+    // starting value changes neither and leaves them alone.
+    std::vector<std::pair<std::string, std::string>> menu;
 
-    for (auto mine = declared.begin(), theirs = variableSpecs.begin();
-         same && mine != declared.end(); ++mine, ++theirs)
+    for (const std::string& path : loom::variablePaths(declared))
     {
-        same = mine->first == theirs->first && mine->second.type == theirs->second.type;
+        menu.emplace_back(path, loom::declaredTypeAt(declared, path));
     }
 
-    if (same) return;
-
     variableSpecs = std::move(declared);
+
+    if (menu == offeredMenu) return;
+
+    offeredMenu = std::move(menu);
 
     for (QtNodes::NodeId id : model->allNodeIds())
     {
@@ -309,9 +311,12 @@ void EditorWindow::forEachVariableUse(const std::string& named, const VariableUs
                 if (pin.type != loom::PinType::VariableName) continue;
 
                 const auto stored = node.pinValues.find(pin.name);
-
                 if (stored == node.pinValues.end()) continue;
-                if (loom::asString(stored->second) != named) continue;
+
+                // A field nested under the name is named by it too.
+                const std::string chosen = loom::asString(stored->second);
+
+                if (chosen != named && chosen.rfind(named + ".", 0) != 0) continue;
 
                 visit(at, graph, node, pin);
             }
@@ -321,23 +326,28 @@ void EditorWindow::forEachVariableUse(const std::string& named, const VariableUs
 
 void EditorWindow::renameVariable(const QString& before, const QString& after)
 {
+    const std::string was = before.toStdString();
     const std::string now = after.toStdString();
 
     log("Renamed the variable '" + before + "' to '" + after + "'");
 
-    forEachVariableUse(before.toStdString(),
+    forEachVariableUse(was,
                        [&](std::size_t at, loom::Graph& graph, loom::NodeInstance& node,
                            const loom::PinSpec& pin)
     {
+        // Only the head of the path moved; whatever was nested under it stays.
+        const std::string chosen = loom::asString(node.pinValues[pin.name]);
+        const std::string moved  = now + chosen.substr(was.size());
+
         if (at == editing)
         {
             NodeAdaptor* live =
                 model->delegateModel<NodeAdaptor>(static_cast<QtNodes::NodeId>(node.id));
 
-            if (live != nullptr) live->setPinValue(pin.name, now);
+            if (live != nullptr) live->setPinValue(pin.name, moved);
         }
 
-        node.pinValues[pin.name] = now;
+        node.pinValues[pin.name] = moved;
 
         logAt("  Updated " + nodeLabel(graph.name, node.id) + " in scene '" +
               QString::fromStdString(graph.name) + "'",
@@ -858,11 +868,11 @@ void EditorWindow::playStory()
 
     if (!writeProjectTo(path)) return;
 
-    const QString player = findPlayer();
+    const QString player = findGame();
 
     if (player.isEmpty())
     {
-        log("Cannot find loom_player next to the editor.", true);
+        log("Cannot find LoomGame next to the editor.", true);
         return;
     }
 

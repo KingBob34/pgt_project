@@ -59,6 +59,9 @@ private:
 
     std::string uniqueName(QTreeWidgetItem* parent, const std::string& wanted) const;
 
+    // The row's name with its ancestors in front, joined by dots.
+    QString pathOf(QTreeWidgetItem* row) const;
+
     QTreeWidget* tree = nullptr;
 
     // True while rows are being built, so their own signals can be ignored.

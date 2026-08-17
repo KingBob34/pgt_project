@@ -53,8 +53,14 @@ public:
     // What a pin carries once the variable it follows has been chosen.
     std::string resolvedType(const loom::PinSpec& pin) const;
 
-    // Rebuilds the editors, for when the declared variables have changed.
-    void refreshEditors() { rebuildEditors(); }
+    // Rebuilds the editors, for when the declared variables have changed. The
+    // update is what makes the ports ask for their type again.
+    void refreshEditors()
+    {
+        rebuildEditors();
+
+        Q_EMIT requestNodeUpdate();
+    }
 
     // Everything except id and position, which stay with QtNodes.
     void setInstance(const loom::NodeInstance& instance);
@@ -75,9 +81,12 @@ public:
 
     bool isWired(const std::string& pin) const;
 
-    // The pins the author may type into. A value node has no flow pins, so its
-    // constant is the output pin itself; every other node is edited on its inputs.
-    const std::vector<loom::PinSpec>& editablePins() const { return constant ? outputs : inputs; }
+    // The pins the author may type into. A value node holds its constant on its
+    // output pin; every other node, flow or not, is filled in on its inputs.
+    const std::vector<loom::PinSpec>& editablePins() const
+    {
+        return constant && !outputs.empty() ? outputs : inputs;
+    }
 
 Q_SIGNALS:
     // Raised by the editor on the node itself, not by setPinValue.

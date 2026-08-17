@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "loom/graph/catalog.h"
+#include "loom/value/inspect.h"
 
 // A handful of node types invented purely for these tests. Nothing in
 // core/runtime knows their names, which is the point: registering a new
@@ -98,13 +99,45 @@ namespace stub
         std::vector<loom::PinSpec> pins(int) const override
         {
             return { in("in", loom::PinType::Flow),
+                     in("target", loom::PinType::String, loom::Value("kept")),
                      in("value", loom::PinType::Any),
                      out("out", loom::PinType::Flow) };
         }
 
         loom::FlowResult execute(loom::ExecutionContext& context) const override
         {
-            context.writeVariable("kept", context.input("value"));
+            context.writeVariable(context.inputString("target"), context.input("value"));
+            return loom::FlowResult::continueOn("out");
+        }
+    };
+
+    // Reads a variable and hands its text to the host, so a test can see it.
+    class Recall : public loom::NodeType
+    {
+    public:
+        std::string name()        const override { return "recall"; }
+        std::string displayName() const override { return "Recall"; }
+        std::string category()    const override { return "Test"; }
+
+        std::vector<loom::PinSpec> pins(int) const override
+        {
+            return { in("in", loom::PinType::Flow),
+                     in("source", loom::PinType::String, loom::Value("kept")),
+                     out("out", loom::PinType::Flow),
+                     out("missing", loom::PinType::Flow) };
+        }
+
+        loom::FlowResult execute(loom::ExecutionContext& context) const override
+        {
+            loom::Value found;
+
+            if (!context.readVariable(context.inputString("source"), found))
+            {
+                return loom::FlowResult::continueOn("missing");
+            }
+
+            context.host().showText(loom::toText(found), loom::TextStyle());
+
             return loom::FlowResult::continueOn("out");
         }
     };
@@ -178,6 +211,7 @@ namespace stub
         catalog.add(std::make_unique<Say>());
         catalog.add(std::make_unique<Produce>());
         catalog.add(std::make_unique<Remember>());
+        catalog.add(std::make_unique<Recall>());
         catalog.add(std::make_unique<Ask>());
         catalog.add(std::make_unique<Leave>());
         catalog.add(std::make_unique<End>());
