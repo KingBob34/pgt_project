@@ -115,6 +115,13 @@ TEST_CASE("node types keep their pin names across extra pin counts", "[nodes][bu
 
     REQUIRE(many.size() > few.size());
 
+    // An option nobody has wired a condition to is one the player can pick.
+    const loom::PinSpec* enabled = findPin(few, "enabled0");
+
+    REQUIRE(enabled != nullptr);
+    REQUIRE(enabled->type == loom::PinType::Bool);
+    REQUIRE(loom::asBool(enabled->defaultValue));
+
     // Growing the option count must not rename or retype what was already there.
     for (const loom::PinSpec& pin : few)
     {

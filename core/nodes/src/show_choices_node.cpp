@@ -7,9 +7,13 @@
 //  picked. The author adds and removes options; empty ones are left out, so
 //  the buttons the player sees line up with the routes that are taken.
 //
+//  An option the story has not unlocked yet is still shown, greyed and out of
+//  reach, so the player can see the route is there.
+//
 //  Inputs
 //      in            Flow
 //      option0..N    String    the label on each button
+//      enabled0..N   Bool      whether that button can be picked
 //      fontSize      Int
 //      color         Color
 //
@@ -38,9 +42,13 @@ namespace loom
                 std::vector<PinSpec> specs;
                 specs.push_back(flowIn());
 
+                // Each option is followed by the switch that governs it, so the
+                // two read as one row of the node.
                 for (int index = 0; index < extraPins; ++index)
                 {
                     specs.push_back(labelTextIn(optionName(index), optionLabel(index)));
+                    specs.push_back(dataIn(enabledName(index), enabledLabel(index),
+                                           PinType::Bool, Value(true)));
                 }
 
                 specs.push_back(dataIn("fontSize", "Font Size", PinType::Int, Value(16)));
@@ -64,7 +72,7 @@ namespace loom
                     const std::string text = context.inputString(optionName(index));
                     if (text.empty()) continue;
 
-                    options.push_back(Option{ text });
+                    options.push_back(Option{ text, context.inputBool(enabledName(index)) });
                     pins.push_back(chosenName(index));
                 }
 
@@ -79,8 +87,11 @@ namespace loom
 
         private:
             static std::string optionName(int index)  { return "option" + std::to_string(index); }
+            static std::string enabledName(int index) { return "enabled" + std::to_string(index); }
             static std::string chosenName(int index)  { return "chosen" + std::to_string(index); }
-            static std::string optionLabel(int index) { return "Option " + std::to_string(index + 1); }
+
+            static std::string optionLabel(int index)  { return "Option " + std::to_string(index + 1); }
+            static std::string enabledLabel(int index) { return "Enabled " + std::to_string(index + 1); }
         };
     }
 

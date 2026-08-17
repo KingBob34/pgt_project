@@ -18,7 +18,13 @@ public:
     void askChoice(const std::vector<loom::Option>& options, const loom::TextStyle&) override
     {
         offered.clear();
-        for (const loom::Option& option : options) offered.push_back(option.text);
+        locked.clear();
+
+        for (const loom::Option& option : options)
+        {
+            offered.push_back(option.text);
+            if (!option.enabled) locked.push_back(option.text);
+        }
     }
 
     void command(const std::string& name, const loom::Value& args) override
@@ -34,6 +40,7 @@ public:
 
     std::vector<std::string> lines;
     std::vector<std::string> offered;
+    std::vector<std::string> locked;
     std::vector<Command>     commands;
 };
 

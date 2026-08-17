@@ -40,6 +40,9 @@ namespace loom
     struct Option
     {
         std::string text;
+
+        // Shown either way; a disabled one cannot be picked yet.
+        bool enabled = true;
     };
 
     // Implemented by the player, by the terminal and by the test double.

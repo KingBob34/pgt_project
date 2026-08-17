@@ -235,8 +235,16 @@ void PlayerWindow::askChoice(const std::vector<loom::Option>& options, const loo
                                       "  text-align: left;"
                                       "}"
                                       "QPushButton:hover { background: #e4e4e4; border-color: #7a7a7a; }"
-                                      "QPushButton:pressed { background: #d2d2d2; }")
+                                      "QPushButton:pressed { background: #d2d2d2; }"
+                                      "QPushButton:disabled {"
+                                      "  color: #a0a0a0;"
+                                      "  background: #ececec;"
+                                      "  border-color: #d8d8d8;"
+                                      "}")
                                   .arg(style.fontSize));
+
+        // Locked, not gone: the route stays on screen until the story opens it.
+        button->setEnabled(options[index].enabled);
 
         const int picked = static_cast<int>(index);
         connect(button, &QPushButton::clicked, this, [this, picked] { chooseOption(picked); });

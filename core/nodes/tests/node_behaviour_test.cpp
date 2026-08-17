@@ -22,7 +22,13 @@ namespace
         void askChoice(const std::vector<loom::Option>& options, const loom::TextStyle&) override
         {
             offered.clear();
-            for (const loom::Option& option : options) offered.push_back(option.text);
+            locked.clear();
+
+            for (const loom::Option& option : options)
+            {
+                offered.push_back(option.text);
+                if (!option.enabled) locked.push_back(option.text);
+            }
         }
 
         void command(const std::string& name, const loom::Value& args) override
@@ -35,6 +41,7 @@ namespace
         std::vector<std::string> lines;
         std::vector<long long>   fontSizes;
         std::vector<std::string> offered;
+        std::vector<std::string> locked;
         std::vector<Command>     commands;
     };
 
@@ -192,6 +199,27 @@ TEST_CASE("Show Choices leaves out empty options and keeps the pins aligned",
 
     // The player picks the second button they can see, which is option 2's pin.
     REQUIRE(result.optionPins == std::vector<std::string>{ "chosen0", "chosen2" });
+}
+
+TEST_CASE("Show Choices shows a locked option but does not let it be picked",
+          "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    FakeContext context;
+    context.inputs["option0"] = "bribe the guard";
+    context.inputs["enabled0"] = false;
+    context.inputs["option1"] = "walk away";
+    context.inputs["enabled1"] = true;
+
+    const loom::FlowResult result = catalog.find("showChoices")->execute(context);
+
+    REQUIRE(context.recorder.offered ==
+            std::vector<std::string>{ "bribe the guard", "walk away" });
+    REQUIRE(context.recorder.locked == std::vector<std::string>{ "bribe the guard" });
+
+    // A locked option keeps its place, so the routes still line up with it.
+    REQUIRE(result.optionPins == std::vector<std::string>{ "chosen0", "chosen1" });
 }
 
 TEST_CASE("Go To Scene reports where to continue and never returns", "[nodes][behaviour]")

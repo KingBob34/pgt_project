@@ -1,11 +1,5 @@
 {
   "entry": "gate",
-  "variables": {
-    "gold": {
-      "type": "int",
-      "value": 0
-    }
-  },
   "graphs": [
     {
       "connections": [
@@ -17,12 +11,6 @@
         },
         {
           "from": 2,
-          "fromPin": "out",
-          "to": 3,
-          "toPin": "in"
-        },
-        {
-          "from": 3,
           "fromPin": "out",
           "to": 5,
           "toPin": "in"
@@ -54,32 +42,20 @@
         {
           "from": 6,
           "fromPin": "out",
-          "to": 8,
+          "to": 9,
           "toPin": "in"
         },
         {
           "from": 6,
           "fromPin": "result",
-          "to": 8,
-          "toPin": "condition"
+          "to": 9,
+          "toPin": "enabled0"
         },
         {
           "from": 7,
           "fromPin": "value",
           "to": 6,
           "toPin": "right"
-        },
-        {
-          "from": 8,
-          "fromPin": "false",
-          "to": 12,
-          "toPin": "in"
-        },
-        {
-          "from": 8,
-          "fromPin": "true",
-          "to": 9,
-          "toPin": "in"
         },
         {
           "from": 9,
@@ -126,8 +102,8 @@
             "name": "gold"
           },
           "position": {
-            "x": 980.0,
-            "y": 0.0
+            "x": 960.0,
+            "y": 285.0
           },
           "type": "setVariable"
         },
@@ -137,8 +113,8 @@
             "value": 25
           },
           "position": {
-            "x": 980.0,
-            "y": 280.0
+            "x": 960.0,
+            "y": 565.0
           },
           "type": "integerValue"
         },
@@ -156,8 +132,8 @@
         {
           "id": 6,
           "position": {
-            "x": 1940.0,
-            "y": 0.0
+            "x": 2111.0,
+            "y": -96.0
           },
           "type": "greater"
         },
@@ -167,18 +143,10 @@
             "value": 20
           },
           "position": {
-            "x": 1940.0,
-            "y": 300.0
+            "x": 2093.0,
+            "y": 198.0
           },
           "type": "integerValue"
-        },
-        {
-          "id": 8,
-          "position": {
-            "x": 2400.0,
-            "y": 0.0
-          },
-          "type": "branch"
         },
         {
           "extraPins": 2,
@@ -189,8 +157,8 @@
             "option1": "Walk away"
           },
           "position": {
-            "x": 2800.0,
-            "y": 0.0
+            "x": 2495.1600000000003,
+            "y": -97.20000000000002
           },
           "type": "showChoices"
         },
@@ -201,8 +169,8 @@
             "textIn": "Twenty gold changes hands. The gate swings open."
           },
           "position": {
-            "x": 3320.0,
-            "y": -300.0
+            "x": 2980.1600000000003,
+            "y": -271.20000000000005
           },
           "type": "showText"
         },
@@ -213,20 +181,8 @@
             "textIn": "You turn back towards the village, purse still heavy."
           },
           "position": {
-            "x": 3320.0,
-            "y": 140.0
-          },
-          "type": "showText"
-        },
-        {
-          "id": 12,
-          "pinValues": {
-            "fontSize": 18,
-            "textIn": "The guard counts your coins and laughs. Not nearly enough."
-          },
-          "position": {
-            "x": 2800.0,
-            "y": 400.0
+            "x": 2980.1600000000003,
+            "y": 168.79999999999995
           },
           "type": "showText"
         },
@@ -249,5 +205,11 @@
     "author": "KingBob",
     "title": "Gate Test"
   },
-  "schemaVersion": 3
+  "schemaVersion": 3,
+  "variables": {
+    "gold": {
+      "type": "int",
+      "value": 15
+    }
+  }
 }
