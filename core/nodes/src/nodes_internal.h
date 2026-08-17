@@ -58,6 +58,21 @@ namespace loom
     std::unique_ptr<NodeType> makeFloorNode();
     std::unique_ptr<NodeType> makeCeilNode();
     std::unique_ptr<NodeType> makeRoundNode();
+    std::unique_ptr<NodeType> makeToFloatNode();
+    std::unique_ptr<NodeType> makeToStringNode();
+    std::unique_ptr<NodeType> makeToBoolNode();
+
+    std::unique_ptr<NodeType> makeAddNode();
+    std::unique_ptr<NodeType> makeSubtractNode();
+    std::unique_ptr<NodeType> makeMultiplyNode();
+    std::unique_ptr<NodeType> makeAndNode();
+    std::unique_ptr<NodeType> makeOrNode();
+    std::unique_ptr<NodeType> makeNotNode();
+
+    std::unique_ptr<NodeType> makeAddToListNode();
+    std::unique_ptr<NodeType> makeRemoveFromListNode();
+    std::unique_ptr<NodeType> makeContainsNode();
+    std::unique_ptr<NodeType> makeListCountNode();
 
     std::unique_ptr<NodeType> makeCommentNode();
     std::unique_ptr<NodeType> makePrintNode();

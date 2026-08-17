@@ -29,7 +29,8 @@ namespace loom
             std::string displayName() const override { return "Show Choices"; }
             std::string category()    const override { return "Presentation"; }
 
-            int minExtraPins() const override { return 2; }
+            // One is enough: a single option is a "carry on" button.
+            int minExtraPins() const override { return 1; }
             int maxExtraPins() const override { return 12; }
 
             std::vector<PinSpec> pins(int extraPins) const override

@@ -31,6 +31,21 @@ namespace loom
         catalog.add(makeFloorNode());
         catalog.add(makeCeilNode());
         catalog.add(makeRoundNode());
+        catalog.add(makeToFloatNode());
+        catalog.add(makeToStringNode());
+        catalog.add(makeToBoolNode());
+
+        catalog.add(makeAddNode());
+        catalog.add(makeSubtractNode());
+        catalog.add(makeMultiplyNode());
+        catalog.add(makeAndNode());
+        catalog.add(makeOrNode());
+        catalog.add(makeNotNode());
+
+        catalog.add(makeAddToListNode());
+        catalog.add(makeRemoveFromListNode());
+        catalog.add(makeContainsNode());
+        catalog.add(makeListCountNode());
 
         catalog.add(makeCommentNode());
         catalog.add(makePrintNode());

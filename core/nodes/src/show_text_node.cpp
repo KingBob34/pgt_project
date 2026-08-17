@@ -9,7 +9,7 @@
 //
 //  Inputs
 //      in            Flow
-//      textIn        String    the words to show
+//      textIn        String    the words to show, held as prose
 //      fontSize      Int
 //      color         Color
 //

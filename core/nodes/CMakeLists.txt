@@ -24,9 +24,25 @@ add_library(loom_nodes STATIC
         src/less_or_equal_node.cpp
         src/greater_node.cpp
         src/greater_or_equal_node.cpp
+
         src/floor_node.cpp
         src/ceil_node.cpp
         src/round_node.cpp
+        src/to_float_node.cpp
+        src/to_string_node.cpp
+        src/to_bool_node.cpp
+
+        src/add_node.cpp
+        src/subtract_node.cpp
+        src/multiply_node.cpp
+        src/and_node.cpp
+        src/or_node.cpp
+        src/not_node.cpp
+
+        src/add_to_list_node.cpp
+        src/remove_from_list_node.cpp
+        src/contains_node.cpp
+        src/list_count_node.cpp
 
         src/comment_node.cpp
         src/print_node.cpp

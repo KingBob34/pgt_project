@@ -336,3 +336,107 @@ TEST_CASE("value nodes and Comment never run", "[nodes][behaviour]")
         REQUIRE(catalog.find(type)->execute(context).kind == loom::FlowResult::Kind::Stop);
     }
 }
+
+TEST_CASE("To Float widens a whole number", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    FakeContext context;
+    context.inputs["value"] = 3;
+
+    REQUIRE(catalog.find("toFloat")->execute(context).pin == "out");
+
+    // asFloat alone reads a whole number as zero, which is the trap here.
+    REQUIRE(loom::isFloat(context.outputs["result"]));
+    REQUIRE(loom::asFloat(context.outputs["result"]) == 3.0);
+}
+
+TEST_CASE("To Float keeps a decimal and counts a Bool", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    {
+        FakeContext context;
+        context.inputs["value"] = 2.5;
+
+        REQUIRE(catalog.find("toFloat")->execute(context).pin == "out");
+        REQUIRE(loom::asFloat(context.outputs["result"]) == 2.5);
+    }
+
+    {
+        FakeContext context;
+        context.inputs["value"] = true;
+
+        REQUIRE(catalog.find("toFloat")->execute(context).pin == "out");
+        REQUIRE(loom::asFloat(context.outputs["result"]) == 1.0);
+    }
+}
+
+TEST_CASE("To Float stops on something that is not a number", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    FakeContext context;
+    context.inputs["value"] = "twelve";
+
+    REQUIRE(catalog.find("toFloat")->execute(context).kind == loom::FlowResult::Kind::Stop);
+    REQUIRE(reportedError(context.recorder));
+}
+
+TEST_CASE("To String renders every kind of value", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    loom::Value list = loom::Value::array();
+    list.push_back(1);
+
+    const std::vector<std::pair<loom::Value, std::string>> cases = {
+        { loom::Value("already text"), "already text" },
+        { loom::Value(42),             "42" },
+        { loom::Value(true),           "true" },
+        { list,                        "[1]" },
+    };
+
+    for (const auto& entry : cases)
+    {
+        FakeContext context;
+        context.inputs["value"] = entry.first;
+
+        REQUIRE(catalog.find("toString")->execute(context).pin == "out");
+        REQUIRE(loom::asString(context.outputs["result"]) == entry.second);
+    }
+}
+
+TEST_CASE("To Bool counts a number and reads the two words", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    const std::vector<std::pair<loom::Value, bool>> cases = {
+        { loom::Value(true),    true },
+        { loom::Value(0),       false },
+        { loom::Value(7),       true },
+        { loom::Value(0.0),     false },
+        { loom::Value("true"),  true },
+        { loom::Value("false"), false },
+    };
+
+    for (const auto& entry : cases)
+    {
+        FakeContext context;
+        context.inputs["value"] = entry.first;
+
+        REQUIRE(catalog.find("toBool")->execute(context).pin == "out");
+        REQUIRE(loom::asBool(context.outputs["result"]) == entry.second);
+    }
+}
+
+TEST_CASE("To Bool stops on text that says neither", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    FakeContext context;
+    context.inputs["value"] = "maybe";
+
+    REQUIRE(catalog.find("toBool")->execute(context).kind == loom::FlowResult::Kind::Stop);
+    REQUIRE(reportedError(context.recorder));
+}

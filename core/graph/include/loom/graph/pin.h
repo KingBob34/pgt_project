@@ -17,6 +17,7 @@ namespace loom
         inline constexpr const char* Float  = "float";
         inline constexpr const char* String = "string";
         inline constexpr const char* Color  = "color";
+        inline constexpr const char* List   = "list";
 
         // Names one of the story's declared globals. Chosen from a list of
         // them, never computed, so no wire may reach it.

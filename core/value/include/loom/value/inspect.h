@@ -1,5 +1,6 @@
 #ifndef LOOM_VALUE_INSPECT_H
 #define LOOM_VALUE_INSPECT_H
+#include <cstddef>
 #include <string>
 #include <vector>
 #include "loom/value/value.h"
@@ -45,6 +46,15 @@ namespace loom
     // The keys of an object, in the order the library keeps them.
     // With objectGet, this is the only way to walk an object from outside.
     std::vector<std::string> objectKeys(const Value& value);
+
+    // List handling. Anything that is not a list counts as empty, and the two
+    // that change one leave a value of another kind alone.
+    std::size_t listSize(const Value& list);
+    bool listContains(const Value& list, const Value& item);
+    void listAppend(Value& list, Value item);
+
+    // Drops the first item equal to this one. False when there was none.
+    bool listRemoveFirst(Value& list, const Value& item);
 }
 
 #endif //LOOM_VALUE_INSPECT_H

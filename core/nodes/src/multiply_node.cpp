@@ -1,16 +1,14 @@
 #include "nodes_internal.h"
 
-#include <cmath>
-
 //==============================================================================
-//  Round                                                       Conversion
+//  Multiply                                                  Logic & Maths
 //------------------------------------------------------------------------------
-//  Turns a decimal number into a whole one, to the nearest. Which of the three to
-//  use is the author's choice, never the engine's.
+//  The two sides multiplied. Whole numbers only.
 //
 //  Inputs
 //      in            Flow
-//      value         Float
+//      left          Int
+//      right         Int
 //
 //  Outputs
 //      out           Flow
@@ -21,33 +19,33 @@ namespace loom
 {
     namespace
     {
-        class RoundNode : public NodeType
+        class MultiplyNode : public NodeType
         {
         public:
-            std::string name()        const override { return "round"; }
-            std::string displayName() const override { return "Round"; }
-            std::string category()    const override { return "Conversion"; }
+            std::string name()        const override { return "multiply"; }
+            std::string displayName() const override { return "*"; }
+            std::string category()    const override { return "Logic & Maths"; }
 
             std::vector<PinSpec> pins(int) const override
             {
                 return { flowIn(),
-                         dataIn("value", "Value", PinType::Float, Value(0.0)),
+                         dataIn("left", "Left", PinType::Int, Value(0)),
+                         dataIn("right", "Right", PinType::Int, Value(0)),
                          flowOut(),
                          dataOut("result", "Result", PinType::Int) };
             }
 
             FlowResult execute(ExecutionContext& context) const override
             {
-                const double rounded = std::round(context.inputFloat("value"));
-                context.setOutput("result", static_cast<long long>(rounded));
+                context.setOutput("result", context.inputInt("left") * context.inputInt("right"));
 
                 return FlowResult::continueOn("out");
             }
         };
     }
 
-    std::unique_ptr<NodeType> makeRoundNode()
+    std::unique_ptr<NodeType> makeMultiplyNode()
     {
-        return std::make_unique<RoundNode>();
+        return std::make_unique<MultiplyNode>();
     }
 }

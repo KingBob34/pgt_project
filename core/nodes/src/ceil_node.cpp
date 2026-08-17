@@ -3,7 +3,7 @@
 #include <cmath>
 
 //==============================================================================
-//  Ceil                                                     Logic & Maths
+//  Ceil                                                        Conversion
 //------------------------------------------------------------------------------
 //  Turns a decimal number into a whole one, upwards. Which of the three to
 //  use is the author's choice, never the engine's.
@@ -26,7 +26,7 @@ namespace loom
         public:
             std::string name()        const override { return "ceil"; }
             std::string displayName() const override { return "Ceil"; }
-            std::string category()    const override { return "Logic & Maths"; }
+            std::string category()    const override { return "Conversion"; }
 
             std::vector<PinSpec> pins(int) const override
             {

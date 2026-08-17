@@ -36,6 +36,7 @@ namespace loom
         if (type == PinType::Float) return "Float";
         if (type == PinType::String) return "String";
         if (type == PinType::Color) return "Color";
+        if (type == PinType::List) return "List";
         if (type == PinType::VariableName) return "Variable";
         if (type == PinType::Unset) return "None";
 

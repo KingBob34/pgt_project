@@ -91,4 +91,43 @@ namespace loom
 
         return keys;
     }
+
+    std::size_t listSize(const Value& list)
+    {
+        return list.is_array() ? list.size() : 0;
+    }
+
+    bool listContains(const Value& list, const Value& item)
+    {
+        if (!list.is_array()) return false;
+
+        for (const Value& held : list)
+        {
+            if (equals(held, item)) return true;
+        }
+
+        return false;
+    }
+
+    void listAppend(Value& list, Value item)
+    {
+        if (!list.is_array()) return;
+
+        list.push_back(std::move(item));
+    }
+
+    bool listRemoveFirst(Value& list, const Value& item)
+    {
+        if (!list.is_array()) return false;
+
+        for (auto held = list.begin(); held != list.end(); ++held)
+        {
+            if (!equals(*held, item)) continue;
+
+            list.erase(held);
+            return true;
+        }
+
+        return false;
+    }
 }

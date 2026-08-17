@@ -30,15 +30,18 @@ namespace
 
 TEST_CASE("every builtin node type is registered once", "[nodes][builtin]")
 {
+    // add() keys on name(), so a duplicated name would silently shrink the
+    // catalog and nothing else would notice. Raise this when a node is added.
+    const std::size_t expected = 36;
+
     const loom::NodeCatalog catalog = builtins();
 
-    REQUIRE(catalog.all().size() == 23);
+    REQUIRE(catalog.all().size() == expected);
 
-    // add() keys on name(), so a duplicated name would silently shrink the catalog.
     std::set<std::string> names;
     for (const loom::NodeType* type : catalog.all()) names.insert(type->name());
 
-    REQUIRE(names.size() == 23);
+    REQUIRE(names.size() == expected);
 }
 
 TEST_CASE("exactly one builtin node type is an entry point", "[nodes][builtin]")
