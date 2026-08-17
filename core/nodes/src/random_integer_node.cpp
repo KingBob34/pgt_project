@@ -3,7 +3,7 @@
 #include <random>
 
 //==============================================================================
-//  Random Integer                                                    Values
+//  Random Integer                                                  Values
 //------------------------------------------------------------------------------
 //  Picks a whole number between Min and Max, both included. A Min above the
 //  Max is the author's slip, so it is reported rather than quietly corrected.

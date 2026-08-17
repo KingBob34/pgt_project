@@ -27,6 +27,15 @@ namespace loom
         inline constexpr const char* Unset = "unset";
     }
 
+    // How much room a String pin's editor needs, declared by the node that
+    // knows what it is asking the author for.
+    namespace TextShape
+    {
+        inline constexpr int Line    = 0;   // a word or a number
+        inline constexpr int Label   = 1;   // a sentence, in a small box
+        inline constexpr int Passage = 2;   // a paragraph, in a wide box
+    }
+
     struct PinSpec
     {
         std::string  name;   // identity in the file: "true", "option0"
@@ -34,7 +43,7 @@ namespace loom
         PinDirection direction = PinDirection::Input;
         std::string  type = PinType::Flow;
         Value        defaultValue;   // starting in-place value of a data input
-        bool longText = false;   // holds prose rather than a single line
+        int textShape = TextShape::Line;
 
         // Names the variableName pin whose choice decides this pin's type.
         // Empty on every pin whose type is fixed.

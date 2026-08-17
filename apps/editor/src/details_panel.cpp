@@ -72,7 +72,7 @@ void DetailsPanel::setNode(NodeAdaptor* adaptor)
 
         if (made.widget == nullptr) continue;
 
-        if (pin.longText) made.widget->setMinimumHeight(kParagraphHeight);
+        if (pin.textShape != loom::TextShape::Line) made.widget->setMinimumHeight(kParagraphHeight);
 
         made.widget->setEnabled(!shown->isWired(pin.name));
 

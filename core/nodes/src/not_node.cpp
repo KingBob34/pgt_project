@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Not                                                       Logic & Maths
+//  Not                                                              Logic
 //------------------------------------------------------------------------------
 //  Turns true into false and false into true.
 //
@@ -23,7 +23,7 @@ namespace loom
         public:
             std::string name()        const override { return "not"; }
             std::string displayName() const override { return "Not"; }
-            std::string category()    const override { return "Logic & Maths"; }
+            std::string category()    const override { return "Logic"; }
 
             std::vector<PinSpec> pins(int) const override
             {

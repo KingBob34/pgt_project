@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Add                                                       Logic & Maths
+//  Add                                                              Maths
 //------------------------------------------------------------------------------
 //  The two sides added together. Whole numbers only.
 //
@@ -24,7 +24,7 @@ namespace loom
         public:
             std::string name()        const override { return "add"; }
             std::string displayName() const override { return "+"; }
-            std::string category()    const override { return "Logic & Maths"; }
+            std::string category()    const override { return "Maths"; }
 
             std::vector<PinSpec> pins(int) const override
             {

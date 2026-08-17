@@ -17,11 +17,13 @@ namespace loom
 
         const NodeType* find(const std::string& name) const;
 
-        // Sorted by type name. Used to build the editor's node menu.
+        // In the order they were added, which is the order the editor's node
+        // menu lists them in.
         std::vector<const NodeType*> all() const;
 
     private:
         std::map<std::string, std::unique_ptr<NodeType>> types;
+        std::vector<NodeType*>                           added;
     };
 }
 

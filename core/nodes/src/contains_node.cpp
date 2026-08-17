@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Contains                                                          Lists
+//  Contains                                                         Lists
 //------------------------------------------------------------------------------
 //  True when the list holds a value equal to the one given.
 //

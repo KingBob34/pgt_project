@@ -8,11 +8,18 @@
 #include <QWidgetAction>
 
 #include <QtNodes/UndoCommands>
+#include <QtNodes/internal/ConnectionGraphicsObject.hpp>
 
 namespace
 {
     // Carries the machine name while the tree shows the display name.
     constexpr int kTypeNameRole = Qt::UserRole + 1;
+
+    // Tall and narrow, so most of the catalog is on screen at once. A step is
+    // all the nesting needs: there is only ever one level of it.
+    constexpr int kMenuWidth = 176;
+    constexpr int kMenuHeight = 460;
+    constexpr int kMenuIndent = 10;
 
     QString toQt(const std::string& text)
     {
@@ -25,6 +32,16 @@ GraphScene::GraphScene(QtNodes::DataFlowGraphModel& model, const loom::NodeCatal
     : QtNodes::DataFlowGraphicsScene(model, parent)
     , catalog(nodeCatalog)
 {
+    // A finished wire is drawn between two ports and has nowhere of its own to
+    // be, but QtNodes leaves it movable and a drag carries it off both of them.
+    connect(&model, &QtNodes::AbstractGraphModel::connectionCreated, this,
+            [this](const QtNodes::ConnectionId& wire)
+            {
+                if (QtNodes::ConnectionGraphicsObject* drawn = connectionGraphicsObject(wire))
+                {
+                    drawn->setFlag(QGraphicsItem::ItemIsMovable, false);
+                }
+            });
 }
 
 QMenu* GraphScene::createSceneMenu(QPointF scenePos)
@@ -42,6 +59,8 @@ QMenu* GraphScene::createSceneMenu(QPointF scenePos)
 
     QTreeWidget* tree = new QTreeWidget(menu);
     tree->header()->close();
+    tree->setFixedSize(kMenuWidth, kMenuHeight);
+    tree->setIndentation(kMenuIndent);
 
     QWidgetAction* treeAction = new QWidgetAction(menu);
     treeAction->setDefaultWidget(tree);

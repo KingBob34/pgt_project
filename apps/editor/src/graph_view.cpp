@@ -2,8 +2,11 @@
 
 #include <QApplication>
 #include <QContextMenuEvent>
+#include <QGraphicsProxyWidget>
 #include <QMouseEvent>
+#include <QPlainTextEdit>
 #include <QScrollBar>
+#include <QWheelEvent>
 
 #include <QtNodes/AbstractGraphModel>
 #include <QtNodes/BasicGraphicsScene>
@@ -11,6 +14,30 @@
 #include <QtNodes/internal/NodeGraphicsObject.hpp>
 
 #include "rubber_band_style.h"
+
+namespace
+{
+    // What one turn of the wheel reports, in eighths of a degree.
+    constexpr int kWheelNotch = 120;
+
+    // The paragraph editor a point on a node lands on, if it lands on one.
+    QPlainTextEdit* paragraphAt(QGraphicsItem* item, QPointF scenePos)
+    {
+        QGraphicsProxyWidget* proxy = qgraphicsitem_cast<QGraphicsProxyWidget*>(item);
+
+        if (proxy == nullptr || proxy->widget() == nullptr) return nullptr;
+
+        QWidget* under = proxy->widget()->childAt(proxy->mapFromScene(scenePos).toPoint());
+
+        // The pointer lands on a viewport, so the editor is looked for above it.
+        for (; under != nullptr; under = under->parentWidget())
+        {
+            if (QPlainTextEdit* box = qobject_cast<QPlainTextEdit*>(under)) return box;
+        }
+
+        return nullptr;
+    }
+}
 
 GraphView::GraphView(QtNodes::BasicGraphicsScene* scene, const loom::NodeCatalog& nodeCatalog,
                      QWidget* parent)
@@ -94,6 +121,33 @@ void GraphView::mouseReleaseEvent(QMouseEvent* event)
     }
 
     QtNodes::GraphicsView::mouseReleaseEvent(event);
+
+    if (event->button() == Qt::LeftButton) commitNodePositions();
+}
+
+void GraphView::commitNodePositions()
+{
+    QtNodes::BasicGraphicsScene* graph = nodeScene();
+    if (graph == nullptr) return;
+
+    QtNodes::AbstractGraphModel& model = graph->graphModel();
+
+    for (QGraphicsItem* item : graph->selectedItems())
+    {
+        QtNodes::NodeGraphicsObject* object =
+            qgraphicsitem_cast<QtNodes::NodeGraphicsObject*>(item);
+
+        if (object == nullptr) continue;
+
+        const QPointF drawn = object->pos();
+        const QPointF stored =
+            model.nodeData(object->nodeId(), QtNodes::NodeRole::Position).value<QPointF>();
+
+        if (drawn != stored)
+        {
+            model.setNodeData(object->nodeId(), QtNodes::NodeRole::Position, drawn);
+        }
+    }
 }
 
 void GraphView::keyReleaseEvent(QKeyEvent* event)
@@ -120,6 +174,26 @@ void GraphView::contextMenuEvent(QContextMenuEvent* event)
     }
 
     QtNodes::GraphicsView::contextMenuEvent(event);
+}
+
+void GraphView::wheelEvent(QWheelEvent* event)
+{
+    const QPoint at = event->position().toPoint();
+
+    // A text box under the pointer takes the whole wheel, including the turns
+    // that scroll nothing: reaching the last line must not start a zoom.
+    if (QPlainTextEdit* box = paragraphAt(itemAt(at), mapToScene(at)))
+    {
+        QScrollBar* bar = box->verticalScrollBar();
+        const int lines = event->angleDelta().y() * QApplication::wheelScrollLines() / kWheelNotch;
+
+        bar->setValue(bar->value() - lines * bar->singleStep());
+
+        event->accept();
+        return;
+    }
+
+    QtNodes::GraphicsView::wheelEvent(event);
 }
 
 void GraphView::onDeleteSelectedObjects()

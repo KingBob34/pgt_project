@@ -26,10 +26,16 @@ namespace loom
                  std::move(type), std::move(defaultValue) };
     }
 
+    PinSpec labelTextIn(std::string name, std::string label, Value defaultValue)
+    {
+        return { std::move(name), std::move(label), PinDirection::Input,
+                 PinType::String, std::move(defaultValue), TextShape::Label };
+    }
+
     PinSpec longTextIn(std::string name, std::string label, Value defaultValue)
     {
         return { std::move(name), std::move(label), PinDirection::Input,
-                 PinType::String, std::move(defaultValue), true };
+                 PinType::String, std::move(defaultValue), TextShape::Passage };
     }
 
     PinSpec variableIn(std::string name, std::string label)
@@ -41,13 +47,13 @@ namespace loom
     PinSpec followsIn(std::string name, std::string label, std::string follows)
     {
         return { std::move(name), std::move(label), PinDirection::Input,
-                 PinType::Unset, Value(), false, std::move(follows) };
+                 PinType::Unset, Value(), TextShape::Line, std::move(follows) };
     }
 
     PinSpec followsOut(std::string name, std::string label, std::string follows)
     {
         return { std::move(name), std::move(label), PinDirection::Output,
-                 PinType::Unset, Value(), false, std::move(follows) };
+                 PinType::Unset, Value(), TextShape::Line, std::move(follows) };
     }
 
     Value defaultColor()

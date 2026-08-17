@@ -11,9 +11,9 @@
 #include "loom/graph/graph.h"
 #include "loom/runtime/interpreter.h"
 
-class QHBoxLayout;
 class QListWidget;
 class QTextEdit;
+class QVBoxLayout;
 
 // The game window. Implements Host, the engine's one route to a front end.
 class PlayerWindow : public QMainWindow, public loom::Host
@@ -48,7 +48,7 @@ private:
 
     QTextEdit*   passage = nullptr;
     QWidget*     choices = nullptr;
-    QHBoxLayout* choiceRow = nullptr;
+    QVBoxLayout* choiceRow = nullptr;
     QListWidget* console = nullptr;
 };
 

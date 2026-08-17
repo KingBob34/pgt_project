@@ -15,8 +15,9 @@ namespace loom
     PinSpec dataIn (std::string name, std::string label, std::string type, Value defaultValue = Value());
     PinSpec dataOut(std::string name, std::string label, std::string type, Value defaultValue = Value());
 
-    // A String input that holds prose.
-    PinSpec longTextIn(std::string name, std::string label, Value defaultValue = Value(""));
+    // String inputs that hold prose: a sentence, and a paragraph.
+    PinSpec labelTextIn(std::string name, std::string label, Value defaultValue = Value(""));
+    PinSpec longTextIn (std::string name, std::string label, Value defaultValue = Value(""));
 
     // An input naming one of the story's declared globals.
     PinSpec variableIn(std::string name, std::string label);

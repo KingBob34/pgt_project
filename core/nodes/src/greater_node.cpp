@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  >                                                        Logic & Maths
+//  >                                                                Logic
 //------------------------------------------------------------------------------
 //  True when the left side is above the right.
 //
@@ -28,7 +28,7 @@ namespace loom
         public:
             std::string name()        const override { return "greater"; }
             std::string displayName() const override { return ">"; }
-            std::string category()    const override { return "Logic & Maths"; }
+            std::string category()    const override { return "Logic"; }
 
             std::vector<PinSpec> pins(int) const override
             {

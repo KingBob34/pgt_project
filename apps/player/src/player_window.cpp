@@ -5,7 +5,6 @@
 #include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
-#include <QHBoxLayout>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QPushButton>
@@ -94,9 +93,11 @@ void PlayerWindow::buildLayout()
     passage->setFrameStyle(QFrame::NoFrame);
     passage->setStyleSheet("QTextEdit { background: white; padding: 24px; }");
 
-    choiceRow = new QHBoxLayout;
+    // Stacked, not side by side: an option is often a whole sentence, and a
+    // row of them squeezes every button down to nothing.
+    choiceRow = new QVBoxLayout;
     choiceRow->setContentsMargins(24, 12, 24, 24);
-    choiceRow->setSpacing(12);
+    choiceRow->setSpacing(8);
 
     choices = new QWidget;
     choices->setLayout(choiceRow);
@@ -231,6 +232,7 @@ void PlayerWindow::askChoice(const std::vector<loom::Option>& options, const loo
                                       "  border: 1px solid #b4b4b4;"
                                       "  border-radius: 4px;"
                                       "  padding: 10px 18px;"
+                                      "  text-align: left;"
                                       "}"
                                       "QPushButton:hover { background: #e4e4e4; border-color: #7a7a7a; }"
                                       "QPushButton:pressed { background: #d2d2d2; }")

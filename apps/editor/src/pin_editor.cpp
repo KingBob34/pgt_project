@@ -25,6 +25,9 @@ namespace
     constexpr int kTextWidth = 140;
     constexpr int kVariableWidth = 150;
 
+    constexpr int kLabelWidth = 120;
+    constexpr int kLabelRows = 3;
+
     constexpr int kParagraphWidth = 240;
     constexpr int kParagraphRows = 4;
 
@@ -68,7 +71,7 @@ namespace
         const QString text = QString::fromStdString(loom::asString(value));
         const QString hint = QString::fromStdString(pin.label);
 
-        if (pin.longText)
+        if (pin.textShape != loom::TextShape::Line)
         {
             QPlainTextEdit* box = new QPlainTextEdit(text);
             box->setPlaceholderText(hint);
@@ -79,7 +82,7 @@ namespace
                 changed(box->toPlainText().toStdString());
             });
 
-            return { box, kParagraphRows };
+            return { box, pin.textShape == loom::TextShape::Passage ? kParagraphRows : kLabelRows };
         }
 
         QLineEdit* field = new QLineEdit(text);
@@ -165,7 +168,10 @@ void fitToNode(QWidget* editor, const loom::PinSpec& pin)
 
     if (pin.type == loom::PinType::String)
     {
-        editor->setFixedWidth(pin.longText ? kParagraphWidth : kTextWidth);
+        if (pin.textShape == loom::TextShape::Passage)    editor->setFixedWidth(kParagraphWidth);
+        else if (pin.textShape == loom::TextShape::Label) editor->setFixedWidth(kLabelWidth);
+        else                                              editor->setFixedWidth(kTextWidth);
+
         return;
     }
 

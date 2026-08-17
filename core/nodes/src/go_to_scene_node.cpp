@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Go To Scene                                                       Flow
+//  Go To Scene                                                      Story
 //------------------------------------------------------------------------------
 //  Leaves this graph and carries on in another one. Nothing ever comes back,
 //  which is why the node has no outputs at all.
@@ -20,7 +20,7 @@ namespace loom
         public:
             std::string name()        const override { return "goToScene"; }
             std::string displayName() const override { return "Go To Scene"; }
-            std::string category()    const override { return "Flow"; }
+            std::string category()    const override { return "Story"; }
 
             std::vector<PinSpec> pins(int) const override
             {

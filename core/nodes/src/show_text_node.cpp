@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Show Text                                                 Presentation
+//  Show Text                                                        Story
 //------------------------------------------------------------------------------
 //  Adds a paragraph to the player's text area and carries on without waiting.
 //  Paragraphs accumulate until a choice is made, so several of these in a row
@@ -30,7 +30,7 @@ namespace loom
         public:
             std::string name()        const override { return "showText"; }
             std::string displayName() const override { return "Show Text"; }
-            std::string category()    const override { return "Presentation"; }
+            std::string category()    const override { return "Story"; }
 
             std::vector<PinSpec> pins(int) const override
             {

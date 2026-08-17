@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Show Choices                                              Presentation
+//  Show Choices                                                     Story
 //------------------------------------------------------------------------------
 //  Offers the player a set of options and suspends the story until one is
 //  picked. The author adds and removes options; empty ones are left out, so
@@ -27,7 +27,7 @@ namespace loom
         public:
             std::string name()        const override { return "showChoices"; }
             std::string displayName() const override { return "Show Choices"; }
-            std::string category()    const override { return "Presentation"; }
+            std::string category()    const override { return "Story"; }
 
             // One is enough: a single option is a "carry on" button.
             int minExtraPins() const override { return 1; }
@@ -40,8 +40,7 @@ namespace loom
 
                 for (int index = 0; index < extraPins; ++index)
                 {
-                    specs.push_back(dataIn(optionName(index), optionLabel(index),
-                                           PinType::String, Value("")));
+                    specs.push_back(labelTextIn(optionName(index), optionLabel(index)));
                 }
 
                 specs.push_back(dataIn("fontSize", "Font Size", PinType::Int, Value(16)));

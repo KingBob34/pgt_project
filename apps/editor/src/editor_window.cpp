@@ -46,6 +46,12 @@
 
 namespace
 {
+    // Where a file dialog opens when the story it is about has no path yet.
+    QString storyFolder(const QString& current)
+    {
+        return current.isEmpty() ? QString(LOOM_STORIES_DIR) : current;
+    }
+
     // Deployed side by side; in a build tree each target has its own directory.
     QString findGame()
     {
@@ -90,7 +96,7 @@ EditorWindow::EditorWindow()
     loom::registerBuiltinNodes(catalog);
 
     setWindowTitle("Loom Editor");
-    resize(1400, 900);
+    resize(1600, 900);
 
     buildCanvas();
     buildMenus();
@@ -403,7 +409,7 @@ void EditorWindow::buildDocks()
     addDockWidget(Qt::RightDockWidgetArea, inspector);
 
     resizeDocks({ playtest, output }, { 420, 300 }, Qt::Vertical);
-    resizeDocks({ inspector }, { 320 }, Qt::Horizontal);
+    resizeDocks({ playtest, output, inspector }, { 320, 320, 300 }, Qt::Horizontal);
 
     connect(scene, &QGraphicsScene::selectionChanged, this, &EditorWindow::syncDetails);
 
@@ -732,7 +738,7 @@ void EditorWindow::newStory()
 
 void EditorWindow::chooseStory()
 {
-    const QString path = QFileDialog::getOpenFileName(this, "Open Story", storyPath,
+    const QString path = QFileDialog::getOpenFileName(this, "Open Story", storyFolder(storyPath),
                                                       "Loom stories (*.loom);;All files (*)");
 
     if (!path.isEmpty()) openStory(path);
@@ -811,7 +817,7 @@ bool EditorWindow::saveStory()
 
 bool EditorWindow::saveStoryAs()
 {
-    const QString path = QFileDialog::getSaveFileName(this, "Save Story", storyPath,
+    const QString path = QFileDialog::getSaveFileName(this, "Save Story", storyFolder(storyPath),
                                                       "Loom stories (*.loom)");
 
     return path.isEmpty() ? false : writeStory(path);

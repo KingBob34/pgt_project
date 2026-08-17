@@ -31,6 +31,12 @@ add_executable(LoomEngine WIN32
         src/value_tree.cpp
 )
 
+# Where the open and save dialogs start. Stands in until the packaged engine
+# has a home of its own to point at.
+target_compile_definitions(LoomEngine PRIVATE
+        LOOM_STORIES_DIR="${CMAKE_SOURCE_DIR}/stories"
+)
+
 target_link_libraries(LoomEngine PRIVATE
         Qt6::Widgets
         QtNodes

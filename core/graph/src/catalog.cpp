@@ -1,5 +1,7 @@
 #include "loom/graph/catalog.h"
 
+#include <algorithm>
+
 namespace loom
 {
     void NodeCatalog::add(std::unique_ptr<NodeType> type)
@@ -7,6 +9,15 @@ namespace loom
         if (type == nullptr) return;
 
         const std::string key = type->name();
+        NodeType* arriving = type.get();
+
+        // A second type under one name takes the first one's place in the
+        // order rather than appearing twice.
+        const auto found = types.find(key);
+
+        if (found == types.end()) added.push_back(arriving);
+        else                      std::replace(added.begin(), added.end(), found->second.get(), arriving);
+
         types[key] = std::move(type);
     }
 
@@ -20,14 +31,6 @@ namespace loom
 
     std::vector<const NodeType*> NodeCatalog::all() const
     {
-        std::vector<const NodeType*> result;
-        result.reserve(types.size());
-
-        for (const auto& entry : types)
-        {
-            result.push_back(entry.second.get());
-        }
-
-        return result;
+        return std::vector<const NodeType*>(added.begin(), added.end());
     }
 }

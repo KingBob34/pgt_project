@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Scene Start                                                       Flow
+//  Scene Start                                                      Story
 //------------------------------------------------------------------------------
 //  Where the story begins. Every graph has exactly one, it cannot be deleted,
 //  and execution starts here whenever the graph is entered.
@@ -19,7 +19,7 @@ namespace loom
         public:
             std::string name()        const override { return "sceneStart"; }
             std::string displayName() const override { return "Scene Start"; }
-            std::string category()    const override { return "Flow"; }
+            std::string category()    const override { return "Story"; }
             bool        isEntryPoint() const override { return true; }
 
             std::vector<PinSpec> pins(int) const override

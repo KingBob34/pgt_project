@@ -25,11 +25,16 @@ protected:
     void mouseReleaseEvent(QMouseEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
 
 private:
     // Every way a pan can end goes through here, or the hand cursor is left
     // lying on the canvas.
     void endPan();
+
+    // QtNodes moves the drawn node and never tells the model, so a dragged
+    // node is saved where it used to be. Reads the truth back at every drop.
+    void commitNodePositions();
 
     const loom::NodeCatalog& catalog;
 

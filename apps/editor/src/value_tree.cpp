@@ -7,6 +7,7 @@
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QMenu>
 #include <QPushButton>
 #include <QStyledItemDelegate>
 #include <QTreeWidget>
@@ -174,20 +175,32 @@ ValueTree::ValueTree(QWidget* parent)
         Q_EMIT changed();
     });
 
-    QPushButton* add = new QPushButton("+");
-    QPushButton* remove = new QPushButton("-");
+    // Deleting is a rare, aimed act, so it lives on the row itself rather than
+    // beside the button that creates one.
+    tree->setContextMenuPolicy(Qt::CustomContextMenu);
 
+    connect(tree, &QTreeWidget::customContextMenuRequested, this, [this](const QPoint& at)
+    {
+        QTreeWidgetItem* row = tree->itemAt(at);
+        if (row == nullptr) return;
+
+        tree->setCurrentItem(row);
+
+        QMenu menu(this);
+        menu.addAction("Delete", this, &ValueTree::removeVariable);
+        menu.exec(tree->viewport()->mapToGlobal(at));
+    });
+
+    QPushButton* add = new QPushButton("+");
     add->setFixedWidth(28);
-    remove->setFixedWidth(28);
+    add->setToolTip("Add a variable, or a row inside the selected list or group");
 
     connect(add, &QPushButton::clicked, this, &ValueTree::addVariable);
-    connect(remove, &QPushButton::clicked, this, &ValueTree::removeVariable);
 
     QHBoxLayout* buttons = new QHBoxLayout;
     buttons->setContentsMargins(0, 0, 0, 0);
     buttons->setSpacing(4);
     buttons->addWidget(add);
-    buttons->addWidget(remove);
     buttons->addStretch();
 
     QVBoxLayout* column = new QVBoxLayout(this);

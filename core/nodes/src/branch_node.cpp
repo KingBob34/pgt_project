@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Branch                                                            Flow
+//  Branch                                                           Story
 //------------------------------------------------------------------------------
 //  Sends the story down one of two routes according to a true or false value.
 //  The only node that turns data back into control flow.
@@ -24,7 +24,7 @@ namespace loom
         public:
             std::string name()        const override { return "branch"; }
             std::string displayName() const override { return "Branch"; }
-            std::string category()    const override { return "Flow"; }
+            std::string category()    const override { return "Story"; }
 
             std::vector<PinSpec> pins(int) const override
             {

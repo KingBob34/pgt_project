@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Subtract                                                  Logic & Maths
+//  Subtract                                                         Maths
 //------------------------------------------------------------------------------
 //  The right side taken from the left. Whole numbers only.
 //
@@ -24,7 +24,7 @@ namespace loom
         public:
             std::string name()        const override { return "subtract"; }
             std::string displayName() const override { return "-"; }
-            std::string category()    const override { return "Logic & Maths"; }
+            std::string category()    const override { return "Maths"; }
 
             std::vector<PinSpec> pins(int) const override
             {

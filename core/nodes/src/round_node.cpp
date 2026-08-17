@@ -3,7 +3,7 @@
 #include <cmath>
 
 //==============================================================================
-//  Round                                                       Conversion
+//  Round                                                            Maths
 //------------------------------------------------------------------------------
 //  Turns a decimal number into a whole one, to the nearest. Which of the three to
 //  use is the author's choice, never the engine's.
@@ -26,7 +26,7 @@ namespace loom
         public:
             std::string name()        const override { return "round"; }
             std::string displayName() const override { return "Round"; }
-            std::string category()    const override { return "Conversion"; }
+            std::string category()    const override { return "Maths"; }
 
             std::vector<PinSpec> pins(int) const override
             {

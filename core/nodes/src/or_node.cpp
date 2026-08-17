@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Or                                                       Logic & Maths
+//  Or                                                               Logic
 //------------------------------------------------------------------------------
 //  True when either side is true.
 //
@@ -24,7 +24,7 @@ namespace loom
         public:
             std::string name()        const override { return "or"; }
             std::string displayName() const override { return "Or"; }
-            std::string category()    const override { return "Logic & Maths"; }
+            std::string category()    const override { return "Logic"; }
 
             std::vector<PinSpec> pins(int) const override
             {

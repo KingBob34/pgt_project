@@ -36,7 +36,7 @@ namespace loom
 
         virtual std::string name()        const = 0;   // "branch", written to file
         virtual std::string displayName() const = 0;   // "Branch"
-        virtual std::string category()    const = 0;   // "Flow"
+        virtual std::string category()    const = 0;   // "Story"
 
 
         // Exactly one node with this flag must exist in every graph.

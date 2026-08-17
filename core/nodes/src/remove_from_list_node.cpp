@@ -1,7 +1,7 @@
 #include "nodes_internal.h"
 
 //==============================================================================
-//  Remove From List                                                  Lists
+//  Remove From List                                                 Lists
 //------------------------------------------------------------------------------
 //  Drops the first item equal to the value given. Finding nothing to drop is a
 //  second route, not a fault.
