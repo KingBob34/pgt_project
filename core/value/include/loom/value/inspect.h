@@ -53,6 +53,10 @@ namespace loom
     bool listContains(const Value& list, const Value& item);
     void listAppend(Value& list, Value item);
 
+    // Returns nullptr when the value is not a list or is shorter than that.
+    // With listSize, this is the only way to walk a list from outside.
+    const Value* listAt(const Value& list, std::size_t index);
+
     // Drops the first item equal to this one. False when there was none.
     bool listRemoveFirst(Value& list, const Value& item);
 }

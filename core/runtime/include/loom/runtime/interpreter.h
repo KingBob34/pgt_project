@@ -69,6 +69,9 @@ namespace loom
         bool finished() const;
         bool waiting() const;
 
+        // The variables as they stand, for a front end that shows them.
+        const std::map<std::string, Value>& state() const { return variables; }
+
 
         SaveState save() const;
         void      restore(const SaveState& state);

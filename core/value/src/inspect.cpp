@@ -109,6 +109,13 @@ namespace loom
         return false;
     }
 
+    const Value* listAt(const Value& list, std::size_t index)
+    {
+        if (!list.is_array() || index >= list.size()) return nullptr;
+
+        return &list[index];
+    }
+
     void listAppend(Value& list, Value item)
     {
         if (!list.is_array()) return;

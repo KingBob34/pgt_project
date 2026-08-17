@@ -97,3 +97,15 @@ TEST_CASE("objectGet returns nullptr rather than failing", "[value][inspect]")
     REQUIRE(loom::objectGet(pets, "dog") == nullptr);
     REQUIRE(loom::objectGet(loom::Value(25), "cat") == nullptr);
 }
+
+TEST_CASE("listAt returns nullptr rather than failing", "[value][inspect]")
+{
+    loom::Value bag = loom::Value::array();
+    bag.push_back("rope");
+    bag.push_back("torch");
+
+    REQUIRE(loom::listAt(bag, 0) != nullptr);
+    REQUIRE(*loom::listAt(bag, 1) == loom::Value("torch"));
+    REQUIRE(loom::listAt(bag, 2) == nullptr);
+    REQUIRE(loom::listAt(loom::Value(25), 0) == nullptr);
+}

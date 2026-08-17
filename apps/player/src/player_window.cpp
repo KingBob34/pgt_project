@@ -5,10 +5,16 @@
 #include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
+#include <QAbstractItemView>
+#include <QEvent>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QLabel>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QPushButton>
 #include <QTextEdit>
+#include <QTreeWidget>
 #include <QVBoxLayout>
 
 #include "loom/nodes/builtin.h"
@@ -19,9 +25,92 @@
 
 namespace
 {
+    constexpr int kStatusIndent = 12;
+    constexpr int kStatusWidth = 420;
+    constexpr int kStatusHeight = 480;
+
+    // The tree draws itself from the desktop palette unless it is told not to,
+    // and the story around it is white whatever the desktop theme is.
+    const char* const kStatusTreeStyle =
+        "QTreeWidget {"
+        "  background: white;"
+        "  color: #1a1a1a;"
+        "  border: 1px solid #e0e0e0;"
+        "}"
+        "QTreeWidget::item { padding: 3px 0; }"
+        "QTreeWidget::item:selected { background: #dce8f4; color: #1a1a1a; }"
+        "QHeaderView::section {"
+        "  background: #f0f0f0;"
+        "  color: #4a4a4a;"
+        "  border: none;"
+        "  border-bottom: 1px solid #e0e0e0;"
+        "  padding: 5px;"
+        "}";
+
+    const char* const kCloseButtonStyle =
+        "QPushButton {"
+        "  color: #6a6a6a;"
+        "  background: transparent;"
+        "  border: none;"
+        "  font-size: 15pt;"
+        "  padding: 0 6px;"
+        "}"
+        "QPushButton:hover { color: #1a1a1a; }";
+
+    // Quieter than a choice: it is a way to look at the game, not to play it.
+    const char* const kSystemButtonStyle =
+        "QPushButton {"
+        "  color: #4a4a4a;"
+        "  background: #f2f2f2;"
+        "  border: 1px solid #c8c8c8;"
+        "  border-radius: 4px;"
+        "  padding: 4px 14px;"
+        "}"
+        "QPushButton:hover { background: #e4e4e4; border-color: #8c8c8c; }";
+
     QString toQt(const std::string& text)
     {
         return QString::fromStdString(text);
+    }
+
+    QString countOf(int count, const QString& noun)
+    {
+        return QString::number(count) + " " + noun + (count == 1 ? "" : "s");
+    }
+
+    // A leaf states what it holds; a container states how much, and spells its
+    // rows out underneath.
+    void fillValue(QTreeWidgetItem* row, const loom::Value& value)
+    {
+        if (loom::isList(value))
+        {
+            for (std::size_t index = 0; index < loom::listSize(value); ++index)
+            {
+                QTreeWidgetItem* item = new QTreeWidgetItem(row);
+                item->setText(0, QString::number(index));
+
+                fillValue(item, *loom::listAt(value, index));
+            }
+
+            row->setText(1, countOf(row->childCount(), "item"));
+            return;
+        }
+
+        if (loom::isObject(value))
+        {
+            for (const std::string& key : loom::objectKeys(value))
+            {
+                QTreeWidgetItem* field = new QTreeWidgetItem(row);
+                field->setText(0, toQt(key));
+
+                fillValue(field, *loom::objectGet(value, key));
+            }
+
+            row->setText(1, countOf(row->childCount(), "field"));
+            return;
+        }
+
+        row->setText(1, toQt(loom::toText(value)));
     }
 
     // Colour components run from 0.0 to 1.0, and JSON drops a zero fraction.
@@ -109,11 +198,15 @@ void PlayerWindow::buildLayout()
     choices->setStyleSheet("#choiceBar { background: white; }");
 
     QWidget* centre = new QWidget;
+
     QVBoxLayout* column = new QVBoxLayout(centre);
     column->setContentsMargins(0, 0, 0, 0);
     column->setSpacing(0);
+    column->addWidget(buildSystemBar(), 0);
     column->addWidget(passage, 1);
     column->addWidget(choices, 0);
+
+    buildStatus(centre);
 
     setCentralWidget(centre);
 
@@ -138,6 +231,132 @@ void PlayerWindow::buildMenus()
     file->addSeparator();
     QAction* quit = file->addAction("&Quit", this, &QWidget::close);
     quit->setShortcut(QKeySequence::Quit);
+}
+
+QWidget* PlayerWindow::buildSystemBar()
+{
+    statusButton = new QPushButton("Status");
+    statusButton->setStyleSheet(kSystemButtonStyle);
+
+    // Kept out of the way while the panel is up, without the story shifting
+    // into the space it leaves.
+    QSizePolicy policy = statusButton->sizePolicy();
+    policy.setRetainSizeWhenHidden(true);
+    statusButton->setSizePolicy(policy);
+
+    connect(statusButton, &QPushButton::clicked, this, [this] { showStatus(true); });
+
+    QWidget* bar = new QWidget;
+
+    QHBoxLayout* row = new QHBoxLayout(bar);
+    row->setContentsMargins(24, 12, 24, 0);
+    row->addStretch();
+    row->addWidget(statusButton);
+
+    // Named, or a bare QWidget selector would repaint every button in here.
+    bar->setObjectName("systemBar");
+    bar->setAttribute(Qt::WA_StyledBackground, true);
+    bar->setStyleSheet("#systemBar { background: white; }");
+
+    return bar;
+}
+
+void PlayerWindow::buildStatus(QWidget* surface)
+{
+    status = new QTreeWidget;
+    status->setColumnCount(2);
+    status->setHeaderLabels({ "Name", "Value" });
+    status->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    status->setIndentation(kStatusIndent);
+    status->setStyleSheet(kStatusTreeStyle);
+
+    status->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    status->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+
+    QLabel* title = new QLabel("Status");
+    title->setStyleSheet("color: #1a1a1a; font-size: 13pt;");
+
+    QPushButton* close = new QPushButton(QString::fromUtf8("\xC3\x97"));
+    close->setStyleSheet(kCloseButtonStyle);
+    close->setCursor(Qt::PointingHandCursor);
+
+    connect(close, &QPushButton::clicked, this, [this] { showStatus(false); });
+
+    QHBoxLayout* heading = new QHBoxLayout;
+    heading->setContentsMargins(0, 0, 0, 0);
+    heading->addWidget(title);
+    heading->addStretch();
+    heading->addWidget(close);
+
+    QWidget* card = new QWidget;
+    card->setFixedSize(kStatusWidth, kStatusHeight);
+
+    QVBoxLayout* inside = new QVBoxLayout(card);
+    inside->setContentsMargins(16, 12, 16, 16);
+    inside->setSpacing(10);
+    inside->addLayout(heading);
+    inside->addWidget(status, 1);
+
+    card->setObjectName("statusCard");
+    card->setAttribute(Qt::WA_StyledBackground, true);
+    card->setStyleSheet("#statusCard { background: white; border-radius: 6px; }");
+
+    // A child of the game surface, not a window: the story stays behind it,
+    // dimmed, so the player can see they are still in the same place.
+    statusOverlay = new QWidget(surface);
+    statusOverlay->setObjectName("statusScrim");
+    statusOverlay->setAttribute(Qt::WA_StyledBackground, true);
+    statusOverlay->setStyleSheet("#statusScrim { background: rgba(0, 0, 0, 110); }");
+
+    QVBoxLayout* middle = new QVBoxLayout(statusOverlay);
+    middle->addWidget(card, 0, Qt::AlignCenter);
+
+    statusOverlay->hide();
+
+    surface->installEventFilter(this);
+}
+
+void PlayerWindow::showStatus(bool on)
+{
+    statusButton->setVisible(!on);
+
+    if (on)
+    {
+        refreshStatus();
+
+        statusOverlay->setGeometry(statusOverlay->parentWidget()->rect());
+        statusOverlay->raise();
+    }
+
+    statusOverlay->setVisible(on);
+}
+
+bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::Resize && statusOverlay != nullptr &&
+        watched == statusOverlay->parentWidget())
+    {
+        statusOverlay->setGeometry(statusOverlay->parentWidget()->rect());
+    }
+
+    return QMainWindow::eventFilter(watched, event);
+}
+
+void PlayerWindow::refreshStatus()
+{
+    status->clear();
+
+    if (interpreter == nullptr) return;
+
+    for (const auto& entry : interpreter->state())
+    {
+        QTreeWidgetItem* row = new QTreeWidgetItem(status);
+        row->setText(0, toQt(entry.first));
+
+        fillValue(row, entry.second);
+    }
+
+    status->expandAll();
 }
 
 void PlayerWindow::log(const QString& text, bool fault)
@@ -205,6 +424,8 @@ void PlayerWindow::openStory(const QString& path)
 
     interpreter = std::make_unique<loom::Interpreter>(project, catalog, *this);
     interpreter->start();
+
+    refreshStatus();
 }
 
 void PlayerWindow::showText(const std::string& text, const loom::TextStyle& style)
@@ -307,6 +528,8 @@ void PlayerWindow::chooseOption(int index)
 
     interpreter->choose(index);
 
+    refreshStatus();
+
     if (interpreter->finished()) log("The story has ended.");
 }
 
@@ -372,4 +595,6 @@ void PlayerWindow::loadGame()
 
     // Re-runs the node that was waiting, which puts its buttons back on screen.
     interpreter->replay();
+
+    refreshStatus();
 }
