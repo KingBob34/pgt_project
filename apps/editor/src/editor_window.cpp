@@ -1,10 +1,15 @@
 #include "editor_window.h"
 
 #include <QAction>
+#include <QCoreApplication>
+#include <QDir>
 #include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QInputDialog>
+#include <QProcess>
+#include <QRegularExpression>
 #include <QKeySequence>
 #include <QListWidget>
 #include <QMenuBar>
@@ -43,10 +48,28 @@
 
 namespace
 {
+    // Long enough for windeployqt to walk a fresh binary, short enough that a
+    // tool which never returns does not hold the editor for ever.
+    constexpr int kDeployTimeout = 120000;
+
     // Where a file dialog opens when the story it is about has no path yet.
     QString storyFolder(const QString& current)
     {
         return current.isEmpty() ? QString(LOOM_STORIES_DIR) : current;
+    }
+
+    // Deployed side by side; in a build tree each target has its own directory.
+    QString findGame()
+    {
+        const QString name = "LoomGame.exe";
+        const QString here = QCoreApplication::applicationDirPath();
+
+        for (const QString& candidate : { here + "/" + name, here + "/../player/" + name })
+        {
+            if (QFileInfo::exists(candidate)) return QFileInfo(candidate).absoluteFilePath();
+        }
+
+        return QString();
     }
 
     // A green play triangle. The stock media icon is dark on a dark toolbar.
@@ -138,6 +161,10 @@ void EditorWindow::buildMenus()
 
     QAction* saveAs = file->addAction("Save &As...", this, &EditorWindow::saveStoryAs);
     saveAs->setShortcut(QKeySequence::SaveAs);
+
+    file->addSeparator();
+
+    file->addAction("&Export Game...", this, &EditorWindow::exportGame);
 
     file->addSeparator();
 
@@ -933,6 +960,62 @@ void EditorWindow::playStoryHere()
     playtest->playFrom(project, sceneName, from);
 
     log("Playing from " + nodeLabel(sceneName, from));
+}
+
+void EditorWindow::exportGame()
+{
+    const QString game = QInputDialog::getText(this, "Export Game", "Game name")
+                             .trimmed()
+                             .remove(QRegularExpression("[\\\\/:*?\"<>|]"));
+
+    if (game.isEmpty()) return;
+
+    const QString into = QFileDialog::getExistingDirectory(this, "Export Into",
+                                                           storyFolder(storyPath));
+    if (into.isEmpty()) return;
+
+    const QString source = findGame();
+
+    if (source.isEmpty())
+    {
+        log("Cannot find LoomGame next to the editor.", true);
+        return;
+    }
+
+    QDir folder(into + "/" + game);
+
+    if (!folder.exists() && !QDir(into).mkpath(game))
+    {
+        log("Cannot make the folder " + folder.absolutePath(), true);
+        return;
+    }
+
+    // Named after the game, which is how it finds its story once it is running.
+    const QString binary = folder.filePath(game + ".exe");
+
+    QFile::remove(binary);
+
+    if (!QFile::copy(source, binary))
+    {
+        log("Cannot copy the game to " + binary, true);
+        return;
+    }
+
+    if (!writeProjectTo(folder.filePath(game + ".loom"))) return;
+
+    // Qt's own libraries, fetched by the tool that knows which ones are needed.
+    QProcess deploy;
+    deploy.start(LOOM_WINDEPLOYQT, { "--no-translations", "--no-system-d3d-compiler",
+                                     "--no-opengl-sw", binary });
+
+    if (!deploy.waitForFinished(kDeployTimeout) || deploy.exitCode() != 0)
+    {
+        log("The Qt libraries were not copied; the game will not run elsewhere.", true);
+        log(QString::fromLocal8Bit(deploy.readAllStandardError()).trimmed(), true);
+        return;
+    }
+
+    log("Exported " + game + " to " + folder.absolutePath());
 }
 
 void EditorWindow::clearConsole()

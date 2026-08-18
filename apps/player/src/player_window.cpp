@@ -1,17 +1,19 @@
 #include "player_window.h"
 
-#include <QAction>
+#include <functional>
+
+#include <QAbstractItemView>
 #include <QColor>
-#include <QDockWidget>
+#include <QCoreApplication>
+#include <QDir>
+#include <QEvent>
 #include <QFile>
 #include <QFileDialog>
-#include <QAbstractItemView>
-#include <QEvent>
+#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
-#include <QListWidget>
-#include <QMenuBar>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QTextEdit>
 #include <QTreeWidget>
@@ -25,14 +27,21 @@
 
 namespace
 {
-    // A line of prose is read by its length, not by the window's. Past about
-    // seventy-five characters the eye loses its place coming back, so the story
-    // stops widening there and the window keeps the rest as margin.
-    constexpr int kReaderWidth = 760;
-
     constexpr int kStatusIndent = 12;
-    constexpr int kStatusWidth = 420;
+    constexpr int kPanelWidth = 420;
     constexpr int kStatusHeight = 480;
+    constexpr int kSettingsHeight = 240;
+
+    // Quieter than a choice: it is a way to look at the game, not to play it.
+    const char* const kSystemButtonStyle =
+        "QPushButton {"
+        "  color: #4a4a4a;"
+        "  background: #f2f2f2;"
+        "  border: 1px solid #c8c8c8;"
+        "  border-radius: 4px;"
+        "  padding: 4px 14px;"
+        "}"
+        "QPushButton:hover { background: #e4e4e4; border-color: #8c8c8c; }";
 
     // The tree draws itself from the desktop palette unless it is told not to,
     // and the story around it is white whatever the desktop theme is.
@@ -62,20 +71,52 @@ namespace
         "}"
         "QPushButton:hover { color: #1a1a1a; }";
 
-    // Quieter than a choice: it is a way to look at the game, not to play it.
-    const char* const kSystemButtonStyle =
-        "QPushButton {"
-        "  color: #4a4a4a;"
-        "  background: #f2f2f2;"
-        "  border: 1px solid #c8c8c8;"
-        "  border-radius: 4px;"
-        "  padding: 4px 14px;"
-        "}"
-        "QPushButton:hover { background: #e4e4e4; border-color: #8c8c8c; }";
+    // The passage is white whatever the desktop theme is, so the buttons state
+    // their own colours instead of inheriting a dark palette.
+    QString optionStyle(int fontSize)
+    {
+        return QString("QPushButton {"
+                       "  font-size: %1pt;"
+                       "  color: #1a1a1a;"
+                       "  background: #f2f2f2;"
+                       "  border: 1px solid #b4b4b4;"
+                       "  border-radius: 4px;"
+                       "  padding: 10px 18px;"
+                       "  text-align: left;"
+                       "}"
+                       "QPushButton:hover { background: #e4e4e4; border-color: #7a7a7a; }"
+                       "QPushButton:pressed { background: #d2d2d2; }"
+                       "QPushButton:disabled {"
+                       "  color: #a0a0a0;"
+                       "  background: #ececec;"
+                       "  border-color: #d8d8d8;"
+                       "}").arg(fontSize);
+    }
 
     QString toQt(const std::string& text)
     {
         return QString::fromStdString(text);
+    }
+
+    // Colour components run from 0.0 to 1.0, and JSON drops a zero fraction.
+    int channel(const loom::Value& source, const std::string& key)
+    {
+        const loom::Value* component = loom::objectGet(source, key);
+        if (component == nullptr) return 0;
+
+        const double scaled = loom::isInt(*component)
+                            ? static_cast<double>(loom::asInt(*component))
+                            : loom::asFloat(*component);
+
+        return static_cast<int>(scaled * 255.0);
+    }
+
+    QColor toColor(const loom::Value& value)
+    {
+        if (!loom::isObject(value)) return QColor(Qt::black);
+
+        return QColor(channel(value, "r"), channel(value, "g"),
+                      channel(value, "b"), channel(value, "a"));
     }
 
     QString countOf(int count, const QString& noun)
@@ -118,25 +159,52 @@ namespace
         row->setText(1, toQt(loom::toText(value)));
     }
 
-    // Colour components run from 0.0 to 1.0, and JSON drops a zero fraction.
-    int channel(const loom::Value& source, const std::string& key)
+    // A panel that covers the game and dims it: one white card in the middle,
+    // with a title and a way out. Hidden until something raises it.
+    QWidget* makeOverlay(QWidget* surface, const QString& title, QWidget* body,
+                         int height, const std::function<void()>& closed)
     {
-        const loom::Value* component = loom::objectGet(source, key);
-        if (component == nullptr) return 0;
+        QLabel* heading = new QLabel(title);
+        heading->setStyleSheet("color: #1a1a1a; font-size: 13pt;");
 
-        const double scaled = loom::isInt(*component)
-                            ? static_cast<double>(loom::asInt(*component))
-                            : loom::asFloat(*component);
+        QPushButton* close = new QPushButton(QString::fromUtf8("\xC3\x97"));
+        close->setStyleSheet(kCloseButtonStyle);
+        close->setCursor(Qt::PointingHandCursor);
 
-        return static_cast<int>(scaled * 255.0);
-    }
+        QObject::connect(close, &QPushButton::clicked, surface, closed);
 
-    QColor toColor(const loom::Value& value)
-    {
-        if (!loom::isObject(value)) return QColor(Qt::black);
+        QHBoxLayout* top = new QHBoxLayout;
+        top->setContentsMargins(0, 0, 0, 0);
+        top->addWidget(heading);
+        top->addStretch();
+        top->addWidget(close);
 
-        return QColor(channel(value, "r"), channel(value, "g"),
-                      channel(value, "b"), channel(value, "a"));
+        QWidget* card = new QWidget;
+        card->setFixedSize(kPanelWidth, height);
+
+        QVBoxLayout* inside = new QVBoxLayout(card);
+        inside->setContentsMargins(16, 12, 16, 16);
+        inside->setSpacing(10);
+        inside->addLayout(top);
+        inside->addWidget(body, 1);
+
+        card->setObjectName("panelCard");
+        card->setAttribute(Qt::WA_StyledBackground, true);
+        card->setStyleSheet("#panelCard { background: white; border-radius: 6px; }");
+
+        // A child of the game surface, not a window: the story stays behind it,
+        // dimmed, so the player can see they are still in the same place.
+        QWidget* overlay = new QWidget(surface);
+        overlay->setObjectName("panelScrim");
+        overlay->setAttribute(Qt::WA_StyledBackground, true);
+        overlay->setStyleSheet("#panelScrim { background: rgba(0, 0, 0, 110); }");
+
+        QVBoxLayout* middle = new QVBoxLayout(overlay);
+        middle->addWidget(card, 0, Qt::AlignCenter);
+
+        overlay->hide();
+
+        return overlay;
     }
 
     bool readFile(const QString& path, std::string& out, QString& error)
@@ -173,12 +241,11 @@ PlayerWindow::PlayerWindow()
 {
     loom::registerBuiltinNodes(catalog);
 
-    setWindowTitle("Loom Player");
+    setWindowTitle("Loom");
     setMinimumSize(640, 480);
     resize(900, 700);
 
     buildLayout();
-    buildMenus();
 }
 
 void PlayerWindow::buildLayout()
@@ -203,84 +270,62 @@ void PlayerWindow::buildLayout()
     choices->setAttribute(Qt::WA_StyledBackground, true);
     choices->setStyleSheet("#choiceBar { background: white; }");
 
-    QWidget* reader = new QWidget;
-    reader->setMaximumWidth(kReaderWidth);
+    QWidget* centre = new QWidget;
 
-    QVBoxLayout* column = new QVBoxLayout(reader);
+    QVBoxLayout* column = new QVBoxLayout(centre);
     column->setContentsMargins(0, 0, 0, 0);
     column->setSpacing(0);
     column->addWidget(buildSystemBar(), 0);
     column->addWidget(passage, 1);
     column->addWidget(choices, 0);
 
-    QWidget* centre = new QWidget;
-
-    // The story takes what it can up to its own limit; the stretches take back
-    // whatever is left over, which is what centres it on a wide screen.
-    QHBoxLayout* across = new QHBoxLayout(centre);
-    across->setContentsMargins(0, 0, 0, 0);
-    across->setSpacing(0);
-    across->addStretch();
-    across->addWidget(reader, 1);
-    across->addStretch();
-
     centre->setObjectName("gameSurface");
     centre->setAttribute(Qt::WA_StyledBackground, true);
     centre->setStyleSheet("#gameSurface { background: white; }");
 
     buildStatus(centre);
+    buildSettings(centre);
+
+    centre->installEventFilter(this);
 
     setCentralWidget(centre);
-
-    console = new QListWidget;
-
-    QDockWidget* dock = new QDockWidget("Console", this);
-    dock->setWidget(console);
-    addDockWidget(Qt::BottomDockWidgetArea, dock);
-}
-
-void PlayerWindow::buildMenus()
-{
-    QMenu* file = menuBar()->addMenu("&File");
-
-    QAction* open = file->addAction("&Open Story...", this, &PlayerWindow::openStoryDialog);
-    open->setShortcut(QKeySequence::Open);
-
-    file->addSeparator();
-    file->addAction("&Save Game...", this, &PlayerWindow::saveGame);
-    file->addAction("&Load Game...", this, &PlayerWindow::loadGame);
-
-    file->addSeparator();
-    QAction* quit = file->addAction("&Quit", this, &QWidget::close);
-    quit->setShortcut(QKeySequence::Quit);
 }
 
 QWidget* PlayerWindow::buildSystemBar()
 {
-    statusButton = new QPushButton("Status");
-    statusButton->setStyleSheet(kSystemButtonStyle);
+    QPushButton* toStatus = new QPushButton("Status");
+    toStatus->setStyleSheet(kSystemButtonStyle);
 
-    // Kept out of the way while the panel is up, without the story shifting
-    // into the space it leaves.
-    QSizePolicy policy = statusButton->sizePolicy();
+    connect(toStatus, &QPushButton::clicked, this,
+            [this] { showOverlay(statusOverlay, true); });
+
+    QPushButton* toSettings = new QPushButton("Settings");
+    toSettings->setStyleSheet(kSystemButtonStyle);
+
+    connect(toSettings, &QPushButton::clicked, this,
+            [this] { showOverlay(settingsOverlay, true); });
+
+    systemBar = new QWidget;
+
+    // Kept out of the way while a panel is up, without the story shifting into
+    // the space it leaves.
+    QSizePolicy policy = systemBar->sizePolicy();
     policy.setRetainSizeWhenHidden(true);
-    statusButton->setSizePolicy(policy);
+    systemBar->setSizePolicy(policy);
 
-    connect(statusButton, &QPushButton::clicked, this, [this] { showStatus(true); });
-
-    QWidget* bar = new QWidget;
-
-    QHBoxLayout* row = new QHBoxLayout(bar);
+    QHBoxLayout* row = new QHBoxLayout(systemBar);
     row->setContentsMargins(24, 12, 24, 0);
+    row->setSpacing(8);
     row->addStretch();
-    row->addWidget(statusButton);
+    row->addWidget(toStatus);
+    row->addWidget(toSettings);
 
     // Named, or a bare QWidget selector would repaint every button in here.
-    bar->setObjectName("systemBar");
-    bar->setAttribute(Qt::WA_StyledBackground, true);
-    bar->setStyleSheet("#systemBar { background: white; }");
+    systemBar->setObjectName("systemBar");
+    systemBar->setAttribute(Qt::WA_StyledBackground, true);
+    systemBar->setStyleSheet("#systemBar { background: white; }");
 
-    return bar;
+    return systemBar;
 }
 
 void PlayerWindow::buildStatus(QWidget* surface)
@@ -295,70 +340,69 @@ void PlayerWindow::buildStatus(QWidget* surface)
     status->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     status->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
 
-    QLabel* title = new QLabel("Status");
-    title->setStyleSheet("color: #1a1a1a; font-size: 13pt;");
-
-    QPushButton* close = new QPushButton(QString::fromUtf8("\xC3\x97"));
-    close->setStyleSheet(kCloseButtonStyle);
-    close->setCursor(Qt::PointingHandCursor);
-
-    connect(close, &QPushButton::clicked, this, [this] { showStatus(false); });
-
-    QHBoxLayout* heading = new QHBoxLayout;
-    heading->setContentsMargins(0, 0, 0, 0);
-    heading->addWidget(title);
-    heading->addStretch();
-    heading->addWidget(close);
-
-    QWidget* card = new QWidget;
-    card->setFixedSize(kStatusWidth, kStatusHeight);
-
-    QVBoxLayout* inside = new QVBoxLayout(card);
-    inside->setContentsMargins(16, 12, 16, 16);
-    inside->setSpacing(10);
-    inside->addLayout(heading);
-    inside->addWidget(status, 1);
-
-    card->setObjectName("statusCard");
-    card->setAttribute(Qt::WA_StyledBackground, true);
-    card->setStyleSheet("#statusCard { background: white; border-radius: 6px; }");
-
-    // A child of the game surface, not a window: the story stays behind it,
-    // dimmed, so the player can see they are still in the same place.
-    statusOverlay = new QWidget(surface);
-    statusOverlay->setObjectName("statusScrim");
-    statusOverlay->setAttribute(Qt::WA_StyledBackground, true);
-    statusOverlay->setStyleSheet("#statusScrim { background: rgba(0, 0, 0, 110); }");
-
-    QVBoxLayout* middle = new QVBoxLayout(statusOverlay);
-    middle->addWidget(card, 0, Qt::AlignCenter);
-
-    statusOverlay->hide();
-
-    surface->installEventFilter(this);
+    statusOverlay = makeOverlay(surface, "Status", status, kStatusHeight,
+                                [this] { showOverlay(statusOverlay, false); });
 }
 
-void PlayerWindow::showStatus(bool on)
+void PlayerWindow::buildSettings(QWidget* surface)
 {
-    statusButton->setVisible(!on);
+    QWidget* body = new QWidget;
+
+    QVBoxLayout* column = new QVBoxLayout(body);
+    column->setContentsMargins(0, 0, 0, 0);
+    column->setSpacing(8);
+
+    const auto entry = [&](const QString& text, void (PlayerWindow::*done)())
+    {
+        QPushButton* button = new QPushButton(text);
+        button->setStyleSheet(kSystemButtonStyle);
+
+        connect(button, &QPushButton::clicked, this, done);
+
+        column->addWidget(button);
+    };
+
+    entry("Save Game", &PlayerWindow::saveGame);
+    entry("Load Game", &PlayerWindow::loadGame);
+
+    QPushButton* quit = new QPushButton("Quit");
+    quit->setStyleSheet(kSystemButtonStyle);
+
+    connect(quit, &QPushButton::clicked, this, &QWidget::close);
+
+    column->addWidget(quit);
+    column->addStretch();
+
+    settingsOverlay = makeOverlay(surface, "Settings", body, kSettingsHeight,
+                                  [this] { showOverlay(settingsOverlay, false); });
+}
+
+void PlayerWindow::showOverlay(QWidget* overlay, bool on)
+{
+    systemBar->setVisible(!on);
 
     if (on)
     {
-        refreshStatus();
+        if (overlay == statusOverlay) refreshStatus();
 
-        statusOverlay->setGeometry(statusOverlay->parentWidget()->rect());
-        statusOverlay->raise();
+        overlay->setGeometry(overlay->parentWidget()->rect());
+        overlay->raise();
     }
 
-    statusOverlay->setVisible(on);
+    overlay->setVisible(on);
 }
 
 bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
 {
-    if (event->type() == QEvent::Resize && statusOverlay != nullptr &&
-        watched == statusOverlay->parentWidget())
+    if (event->type() == QEvent::Resize)
     {
-        statusOverlay->setGeometry(statusOverlay->parentWidget()->rect());
+        for (QWidget* overlay : { statusOverlay, settingsOverlay })
+        {
+            if (overlay != nullptr && watched == overlay->parentWidget())
+            {
+                overlay->setGeometry(overlay->parentWidget()->rect());
+            }
+        }
     }
 
     return QMainWindow::eventFilter(watched, event);
@@ -381,20 +425,39 @@ void PlayerWindow::refreshStatus()
     status->expandAll();
 }
 
-void PlayerWindow::log(const QString& text, bool fault)
+void PlayerWindow::report(const QString& text)
 {
-    QListWidgetItem* line = new QListWidgetItem(text, console);
-    if (fault) line->setForeground(Qt::red);
-
-    console->scrollToBottom();
+    QMessageBox::warning(this, windowTitle(), text);
 }
 
-void PlayerWindow::openStoryDialog()
+void PlayerWindow::openStoryBesideMe()
 {
-    const QString path = QFileDialog::getOpenFileName(
-        this, "Open Story", QString(), "Loom story (*.loom *.json);;All files (*)");
+    const QFileInfo self(QCoreApplication::applicationFilePath());
+    const QDir here = self.absoluteDir();
 
-    if (!path.isEmpty()) openStory(path);
+    // Named after the game first, because a folder may hold more than one.
+    const QString named = here.filePath(self.completeBaseName() + ".loom");
+
+    if (QFileInfo::exists(named))
+    {
+        openStory(named);
+        return;
+    }
+
+    const QStringList found = here.entryList({ "*.loom" }, QDir::Files, QDir::Name);
+
+    if (found.size() == 1)
+    {
+        openStory(here.filePath(found.front()));
+        return;
+    }
+
+    report("No story was found next to this game.");
+
+    const QString chosen = QFileDialog::getOpenFileName(
+        this, "Open Story", here.absolutePath(), "Loom story (*.loom);;All files (*)");
+
+    if (!chosen.isEmpty()) openStory(chosen);
 }
 
 void PlayerWindow::openStory(const QString& path)
@@ -402,13 +465,12 @@ void PlayerWindow::openStory(const QString& path)
     interpreter.reset();
     clearChoices();
     passage->clear();
-    console->clear();
 
     std::string text;
     QString failure;
     if (!readFile(path, text, failure))
     {
-        log("Cannot read " + path + ": " + failure, true);
+        report("Cannot read " + path + ":\n" + failure);
         return;
     }
 
@@ -416,7 +478,7 @@ void PlayerWindow::openStory(const QString& path)
     std::string error;
     if (!loom::parseJson(text, document, error))
     {
-        log(toQt(error), true);
+        report(toQt(error));
         return;
     }
 
@@ -425,29 +487,31 @@ void PlayerWindow::openStory(const QString& path)
     loom::Diagnostics diagnostics;
     const bool read = loom::readProject(document, catalog, project, diagnostics);
 
-    for (const loom::Diagnostic& entry : diagnostics.all())
-    {
-        QString line = toQt(entry.message);
-        if (entry.node != 0) line += QString(" (node %1)").arg(entry.node);
-        if (!entry.pin.empty()) line += QString(" [%1]").arg(toQt(entry.pin));
-
-        log(line, entry.severity == loom::Severity::Error);
-    }
-
-    // Warnings are what an unfinished story looks like, so only errors stop it.
+    // Warnings are what an unfinished story looks like, so only errors stop it,
+    // and only then does the player hear about any of this.
     if (!read || diagnostics.hasErrors())
     {
-        log("The story has faults and will not be played.", true);
+        QStringList faults;
+
+        for (const loom::Diagnostic& entry : diagnostics.all())
+        {
+            if (entry.severity != loom::Severity::Error) continue;
+
+            QString line = toQt(entry.message);
+            if (entry.node != 0) line += QString(" (node %1)").arg(entry.node);
+
+            faults << line;
+        }
+
+        report("This story cannot be played.\n\n" + faults.join("\n"));
         return;
     }
 
     storyPath = path;
-    setWindowTitle("Loom Player - " + toQt(project.meta.title));
+    setWindowTitle(toQt(project.meta.title));
 
     interpreter = std::make_unique<loom::Interpreter>(project, catalog, *this);
     interpreter->start();
-
-    refreshStatus();
 }
 
 void PlayerWindow::showText(const std::string& text, const loom::TextStyle& style)
@@ -465,26 +529,7 @@ void PlayerWindow::askChoice(const std::vector<loom::Option>& options, const loo
     for (std::size_t index = 0; index < options.size(); ++index)
     {
         QPushButton* button = new QPushButton(toQt(options[index].text));
-
-        // The passage is white whatever the desktop theme is, so the buttons
-        // state their own colours instead of inheriting a dark palette.
-        button->setStyleSheet(QString("QPushButton {"
-                                      "  font-size: %1pt;"
-                                      "  color: #1a1a1a;"
-                                      "  background: #f2f2f2;"
-                                      "  border: 1px solid #b4b4b4;"
-                                      "  border-radius: 4px;"
-                                      "  padding: 10px 18px;"
-                                      "  text-align: left;"
-                                      "}"
-                                      "QPushButton:hover { background: #e4e4e4; border-color: #7a7a7a; }"
-                                      "QPushButton:pressed { background: #d2d2d2; }"
-                                      "QPushButton:disabled {"
-                                      "  color: #a0a0a0;"
-                                      "  background: #ececec;"
-                                      "  border-color: #d8d8d8;"
-                                      "}")
-                                  .arg(style.fontSize));
+        button->setStyleSheet(optionStyle(static_cast<int>(style.fontSize)));
 
         // Locked, not gone: the route stays on screen until the story opens it.
         button->setEnabled(options[index].enabled);
@@ -500,28 +545,27 @@ void PlayerWindow::askChoice(const std::vector<loom::Option>& options, const loo
     }
 }
 
-void PlayerWindow::command(const std::string& name, const loom::Value& args)
+void PlayerWindow::command(const std::string&, const loom::Value&)
 {
-    if (name == "error")
+    // A game says nothing about engine faults. The author meets them in the
+    // editor's console, where they lead back to the node that raised them.
+}
+
+void PlayerWindow::chooseOption(int index)
+{
+    if (interpreter == nullptr) return;
+
+    clearChoices();
+
+    // The reader shows one passage at a time: what came before is finished with.
+    passage->clear();
+
+    interpreter->choose(index);
+
+    if (interpreter->finished())
     {
-        const loom::Value* node = loom::objectGet(args, "node");
-        const loom::Value* detail = loom::objectGet(args, "detail");
-
-        log(QString("%1: %2")
-                .arg(node == nullptr ? QString("engine") : toQt(loom::asString(*node)))
-                .arg(detail == nullptr ? QString() : toQt(loom::asString(*detail))),
-            true);
-        return;
+        passage->append("<p style=\"color:#8a8a8a;\">The story ends here.</p>");
     }
-
-    if (name == "print")
-    {
-        const loom::Value* text = loom::objectGet(args, "text");
-        log(text == nullptr ? QString() : toQt(loom::asString(*text)));
-        return;
-    }
-
-    log(toQt(name) + " " + toQt(loom::toText(args)));
 }
 
 void PlayerWindow::clearChoices()
@@ -539,22 +583,6 @@ void PlayerWindow::clearChoices()
     }
 }
 
-void PlayerWindow::chooseOption(int index)
-{
-    if (interpreter == nullptr) return;
-
-    clearChoices();
-
-    // The reader shows one passage at a time: what came before is finished with.
-    passage->clear();
-
-    interpreter->choose(index);
-
-    refreshStatus();
-
-    if (interpreter->finished()) log("The story has ended.");
-}
-
 void PlayerWindow::saveGame()
 {
     if (interpreter == nullptr) return;
@@ -567,20 +595,16 @@ void PlayerWindow::saveGame()
     QString failure;
     if (!writeFile(path, loom::writeJson(loom::writeSave(interpreter->save())), failure))
     {
-        log("Cannot write " + path + ": " + failure, true);
+        report("Cannot write " + path + ":\n" + failure);
         return;
     }
 
-    log("Saved to " + path);
+    showOverlay(settingsOverlay, false);
 }
 
 void PlayerWindow::loadGame()
 {
-    if (interpreter == nullptr)
-    {
-        log("Open a story before loading a save.", true);
-        return;
-    }
+    if (interpreter == nullptr) return;
 
     const QString path = QFileDialog::getOpenFileName(
         this, "Load Game", QString(), "Loom save (*.loomsave)");
@@ -591,7 +615,7 @@ void PlayerWindow::loadGame()
     QString failure;
     if (!readFile(path, text, failure))
     {
-        log("Cannot read " + path + ": " + failure, true);
+        report("Cannot read " + path + ":\n" + failure);
         return;
     }
 
@@ -599,14 +623,14 @@ void PlayerWindow::loadGame()
     std::string error;
     if (!loom::parseJson(text, document, error))
     {
-        log(toQt(error), true);
+        report(toQt(error));
         return;
     }
 
     loom::SaveState state;
     if (!loom::readSave(document, state, error))
     {
-        log(toQt(error), true);
+        report(toQt(error));
         return;
     }
 
@@ -618,5 +642,5 @@ void PlayerWindow::loadGame()
     // Re-runs the node that was waiting, which puts its buttons back on screen.
     interpreter->replay();
 
-    refreshStatus();
+    showOverlay(settingsOverlay, false);
 }

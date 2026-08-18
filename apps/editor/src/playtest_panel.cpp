@@ -35,7 +35,7 @@ namespace
                       channel(value, "b"), channel(value, "a"));
     }
 
-    // Narrower than the game's, because the panel shares the window with the
+    // Tighter than the game's, because the panel shares the window with the
     // canvas and never gets the width a reader would.
     const char* const kOptionStyle =
         "QPushButton {"
@@ -121,7 +121,7 @@ void PlaytestPanel::showText(const std::string& text, const loom::TextStyle& sty
                         .arg(toQt(text).toHtmlEscaped()));
 }
 
-void PlaytestPanel::askChoice(const std::vector<loom::Option>& options, const loom::TextStyle& style)
+void PlaytestPanel::askChoice(const std::vector<loom::Option>& options, const loom::TextStyle&)
 {
     clearChoices();
 

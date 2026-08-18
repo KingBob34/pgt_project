@@ -12,7 +12,9 @@ int main(int argc, char** argv)
     window.showMaximized();
 
     // The story may arrive as an argument, from "Open with" or a dropped file.
+    // An exported game is given none and finds its own.
     if (argc > 1) window.openStory(QString::fromLocal8Bit(argv[1]));
+    else          window.openStoryBesideMe();
 
     return QApplication::exec();
 }

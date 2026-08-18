@@ -32,10 +32,16 @@ add_executable(LoomEngine WIN32
         src/playtest_panel.cpp
 )
 
+# The tool that copies Qt's own libraries next to an exported game. Found
+# beside qmake, which Qt6 always points at.
+get_target_property(LOOM_QMAKE Qt6::qmake IMPORTED_LOCATION)
+get_filename_component(LOOM_QT_BIN "${LOOM_QMAKE}" DIRECTORY)
+
 # Where the open and save dialogs start. Stands in until the packaged engine
 # has a home of its own to point at.
 target_compile_definitions(LoomEngine PRIVATE
         LOOM_STORIES_DIR="${CMAKE_SOURCE_DIR}/stories"
+        LOOM_WINDEPLOYQT="${LOOM_QT_BIN}/windeployqt.exe"
 )
 
 target_link_libraries(LoomEngine PRIVATE

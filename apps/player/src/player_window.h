@@ -11,13 +11,14 @@
 #include "loom/graph/graph.h"
 #include "loom/runtime/interpreter.h"
 
-class QListWidget;
 class QPushButton;
 class QTextEdit;
 class QTreeWidget;
 class QVBoxLayout;
 
 // The game window. Implements Host, the engine's one route to a front end.
+// Nothing in here belongs to the editor: what the author sees when they
+// export a game is exactly this.
 class PlayerWindow : public QMainWindow, public loom::Host
 {
     Q_OBJECT
@@ -27,34 +28,39 @@ public:
 
     void openStory(const QString& path);
 
+    // The story this game was built around: the one named after the game, or
+    // the only one sitting beside it.
+    void openStoryBesideMe();
+
     void showText(const std::string& text, const loom::TextStyle& style) override;
     void askChoice(const std::vector<loom::Option>& options, const loom::TextStyle& style) override;
     void command(const std::string& name, const loom::Value& args) override;
 
-    // The panel is not in a layout, so it is resized with what it covers.
+    // The panels are not in a layout, so they are resized with what they cover.
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    void buildMenus();
     void buildLayout();
 
-    // The row of system buttons and the panel one of them opens. Both live in
-    // the game surface, because they are things the player uses.
+    // The row of system buttons and the two panels they open. All of it lives
+    // in the game surface, because it is what the player uses.
     QWidget* buildSystemBar();
     void     buildStatus(QWidget* surface);
+    void     buildSettings(QWidget* surface);
 
-    // Raises the panel over the darkened story, or puts it away again.
-    void showStatus(bool on);
+    // Raises one panel over the darkened story, or puts it away again.
+    void showOverlay(QWidget* overlay, bool on);
 
-    // Redraws the panel from the running story. Called wherever the story has
-    // just stopped to wait, which is the only time the player can look.
+    // Redraws the status panel from the running story.
     void refreshStatus();
 
     void chooseOption(int index);
     void clearChoices();
-    void log(const QString& text, bool fault = false);
 
-    void openStoryDialog();
+    // Says something the player needs to know. A game has no console: what
+    // goes wrong at runtime is the author's to find in the editor.
+    void report(const QString& text);
+
     void saveGame();
     void loadGame();
 
@@ -66,9 +72,9 @@ private:
     QTextEdit*   passage = nullptr;
     QWidget*     choices = nullptr;
     QVBoxLayout* choiceRow = nullptr;
-    QListWidget* console = nullptr;
+    QWidget*     systemBar = nullptr;
     QWidget*     statusOverlay = nullptr;
-    QPushButton* statusButton = nullptr;
+    QWidget*     settingsOverlay = nullptr;
     QTreeWidget* status = nullptr;
 };
 

@@ -62,6 +62,11 @@ private:
 
     void playStory();
     void playStoryHere();
+
+    // Writes a folder the author can hand to a player: the game, its story and
+    // the libraries both need.
+    void exportGame();
+
     void clearConsole();
 
     void setStoryPath(const QString& path);
