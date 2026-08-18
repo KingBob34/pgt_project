@@ -14,14 +14,10 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QVBoxLayout>
-#include <QCoreApplication>
-#include <QFileInfo>
-#include <QProcess>
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
 #include <QPolygonF>
-#include <QStandardPaths>
 #include <QStyle>
 #include <QToolBar>
 #include <QListView>
@@ -36,6 +32,7 @@
 #include "graph_view.h"
 #include "node_adaptor.h"
 #include "node_geometry.h"
+#include "playtest_panel.h"
 #include "value_tree.h"
 
 #include "loom/graph/validate.h"
@@ -52,27 +49,9 @@ namespace
         return current.isEmpty() ? QString(LOOM_STORIES_DIR) : current;
     }
 
-    // Deployed side by side; in a build tree each target has its own directory.
-    QString findGame()
-    {
-#ifdef Q_OS_WIN
-        const QString name = "LoomGame.exe";
-#else
-        const QString name = "LoomGame";
-#endif
-
-        const QString here = QCoreApplication::applicationDirPath();
-
-        for (const QString& candidate : { here + "/" + name, here + "/../player/" + name })
-        {
-            if (QFileInfo::exists(candidate)) return QFileInfo(candidate).absoluteFilePath();
-        }
-
-        return QString();
-    }
-
     // A green play triangle. The stock media icon is dark on a dark toolbar.
-    QIcon playIcon()
+    // The badge marks the one that starts at the chosen node instead.
+    QIcon playIcon(bool fromHere)
     {
         QPixmap pixmap(24, 24);
         pixmap.fill(Qt::transparent);
@@ -83,9 +62,24 @@ namespace
         painter.setBrush(QColor(104, 198, 104));
 
         QPolygonF triangle;
-        triangle << QPointF(6.0, 3.5) << QPointF(19.5, 12.0) << QPointF(6.0, 20.5);
+        triangle << QPointF(5.0, 3.0) << QPointF(18.0, 11.0) << QPointF(5.0, 19.0);
 
         painter.drawPolygon(triangle);
+
+        if (fromHere)
+        {
+            // Punched out of the triangle first, so the badge keeps its edge
+            // wherever the two overlap.
+            painter.setBrush(Qt::transparent);
+            painter.setCompositionMode(QPainter::CompositionMode_Clear);
+            painter.drawEllipse(QPointF(17.0, 17.0), 7.0, 7.0);
+
+            painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+            painter.setBrush(QColor(240, 173, 78));
+            painter.drawEllipse(QPointF(17.0, 17.0), 5.5, 5.5);
+        }
+
+        painter.end();
 
         return QIcon(pixmap);
     }
@@ -166,9 +160,8 @@ void EditorWindow::buildMenus()
     playAction = debug->addAction("&Play", this, &EditorWindow::playStory);
     playAction->setShortcut(Qt::Key_F5);
 
-    QAction* here = debug->addAction("Play From &Here");
-    here->setShortcut(Qt::SHIFT | Qt::Key_F5);
-    here->setEnabled(false);
+    playHereAction = debug->addAction("Play From &Here", this, &EditorWindow::playStoryHere);
+    playHereAction->setShortcut(Qt::SHIFT | Qt::Key_F5);
 
     debug->addSeparator();
 
@@ -178,7 +171,11 @@ void EditorWindow::buildMenus()
 void EditorWindow::buildToolBar()
 {
     saveAction->setIcon(style()->standardIcon(QStyle::SP_DialogSaveButton));
-    playAction->setIcon(playIcon());
+    playAction->setIcon(playIcon(false));
+    playHereAction->setIcon(playIcon(true));
+
+    playAction->setToolTip("Play from the start of the story");
+    playHereAction->setToolTip("Play from the selected node");
 
     QToolBar* bar = addToolBar("Main");
     bar->setMovable(false);
@@ -193,6 +190,7 @@ void EditorWindow::buildToolBar()
 
     bar->addAction(saveAction);
     bar->addAction(playAction);
+    bar->addAction(playHereAction);
 }
 
 QWidget* EditorWindow::buildConsole()
@@ -389,15 +387,23 @@ void EditorWindow::buildDocks()
     setCorner(Qt::TopRightCorner, Qt::RightDockWidgetArea);
     setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
 
-    QDockWidget* playtest = new QDockWidget("Playtest", this);
-    playtest->setWidget(new QWidget);
-    addDockWidget(Qt::LeftDockWidgetArea, playtest);
+    playtest = new PlaytestPanel(catalog);
+
+    connect(playtest, &PlaytestPanel::faulted, this,
+            [this](const QString& detail, const QString& graph, loom::NodeId node)
+            {
+                logAt(detail, graph.toStdString(), node, true);
+            });
+
+    playtestDock = new QDockWidget("Playtest", this);
+    playtestDock->setWidget(playtest);
+    addDockWidget(Qt::LeftDockWidgetArea, playtestDock);
 
     QDockWidget* output = new QDockWidget("Console", this);
     output->setWidget(buildConsole());
     addDockWidget(Qt::LeftDockWidgetArea, output);
 
-    splitDockWidget(playtest, output, Qt::Vertical);
+    splitDockWidget(playtestDock, output, Qt::Vertical);
 
     QDockWidget* strip = new QDockWidget("Scenes", this);
     strip->setWidget(buildScenes());
@@ -408,8 +414,8 @@ void EditorWindow::buildDocks()
 
     addDockWidget(Qt::RightDockWidgetArea, inspector);
 
-    resizeDocks({ playtest, output }, { 420, 300 }, Qt::Vertical);
-    resizeDocks({ playtest, output, inspector }, { 320, 320, 300 }, Qt::Horizontal);
+    resizeDocks({ playtestDock, output }, { 420, 300 }, Qt::Vertical);
+    resizeDocks({ playtestDock, output, inspector }, { 320, 320, 300 }, Qt::Horizontal);
 
     connect(scene, &QGraphicsScene::selectionChanged, this, &EditorWindow::syncDetails);
 
@@ -657,39 +663,44 @@ void EditorWindow::revealNode(QListWidgetItem* line)
 
     if (!target.isValid()) return;
 
-    const std::string wanted = line->data(Qt::UserRole).toString().toStdString();
+    focusNode(line->data(Qt::UserRole).toString().toStdString(), target.toInt());
+}
 
-    if (!wanted.empty() && wanted != project.graphs[editing].name)
+bool EditorWindow::focusNode(const std::string& graph, loom::NodeId node)
+{
+    if (!graph.empty() && graph != project.graphs[editing].name)
     {
         std::size_t index = project.graphs.size();
 
         for (std::size_t at = 0; at < project.graphs.size(); ++at)
         {
-            if (project.graphs[at].name == wanted) index = at;
+            if (project.graphs[at].name == graph) index = at;
         }
 
         if (index == project.graphs.size())
         {
-            log("There is no longer a scene called '" + QString::fromStdString(wanted) + "'.", true);
-            return;
+            log("There is no longer a scene called '" + QString::fromStdString(graph) + "'.", true);
+            return false;
         }
 
         scenes->setCurrentRow(static_cast<int>(index));
     }
 
     QtNodes::NodeGraphicsObject* object =
-        scene->nodeGraphicsObject(static_cast<QtNodes::NodeId>(target.toInt()));
+        scene->nodeGraphicsObject(static_cast<QtNodes::NodeId>(node));
 
     if (object == nullptr)
     {
-        log("Node #" + target.toString() + " is no longer on the canvas.", true);
-        return;
+        log("Node #" + QString::number(node) + " is no longer on the canvas.", true);
+        return false;
     }
 
     scene->clearSelection();
     object->setSelected(true);
 
     view->centerOn(object);
+
+    return true;
 }
 
 void EditorWindow::report(const loom::Diagnostics& diagnostics)
@@ -823,10 +834,15 @@ bool EditorWindow::saveStoryAs()
     return path.isEmpty() ? false : writeStory(path);
 }
 
-bool EditorWindow::writeProjectTo(const QString& path)
+void EditorWindow::gatherProject()
 {
     project.graphs[editing] = document->graph();
     project.variables = values->variables();
+}
+
+bool EditorWindow::writeProjectTo(const QString& path)
+{
+    gatherProject();
 
     QFile file(path);
 
@@ -869,26 +885,54 @@ void EditorWindow::setStoryPath(const QString& path)
 
 void EditorWindow::playStory()
 {
-    const QString path =
-        QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/loom_playtest.loom";
+    gatherProject();
 
-    if (!writeProjectTo(path)) return;
+    playtestDock->show();
+    playtestDock->raise();
 
-    const QString player = findGame();
-
-    if (player.isEmpty())
-    {
-        log("Cannot find LoomGame next to the editor.", true);
-        return;
-    }
-
-    if (!QProcess::startDetached(player, { path }))
-    {
-        log("The player would not start.", true);
-        return;
-    }
+    playtest->play(project);
 
     log("Playing " + QString::fromStdString(project.entry));
+}
+
+void EditorWindow::playStoryHere()
+{
+    QtNodes::NodeGraphicsObject* only = nullptr;
+
+    for (QGraphicsItem* item : scene->selectedItems())
+    {
+        QtNodes::NodeGraphicsObject* object =
+            qgraphicsitem_cast<QtNodes::NodeGraphicsObject*>(item);
+
+        if (object == nullptr) continue;
+
+        // A run begins at one node, so a wider selection names none.
+        if (only != nullptr)
+        {
+            only = nullptr;
+            break;
+        }
+
+        only = object;
+    }
+
+    if (only == nullptr)
+    {
+        log("Select the node to start from first.", true);
+        return;
+    }
+
+    const loom::NodeId from = static_cast<loom::NodeId>(only->nodeId());
+    const std::string sceneName = project.graphs[editing].name;
+
+    gatherProject();
+
+    playtestDock->show();
+    playtestDock->raise();
+
+    playtest->playFrom(project, sceneName, from);
+
+    log("Playing from " + nodeLabel(sceneName, from));
 }
 
 void EditorWindow::clearConsole()

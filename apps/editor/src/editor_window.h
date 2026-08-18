@@ -22,7 +22,9 @@ class GraphDocument;
 class GraphModel;
 class GraphScene;
 class GraphView;
+class PlaytestPanel;
 class ValueTree;
+class QDockWidget;
 class QListWidget;
 class QListWidgetItem;
 class QAction;
@@ -54,7 +56,12 @@ private:
     bool saveStoryAs();
     bool writeStory(const QString& path);
     bool writeProjectTo(const QString& path);
+
+    // The project as it stands on the canvas, ready to be played or written.
+    void gatherProject();
+
     void playStory();
+    void playStoryHere();
     void clearConsole();
 
     void setStoryPath(const QString& path);
@@ -66,6 +73,9 @@ private:
 
     QString nodeLabel(const std::string& graph, loom::NodeId node) const;
     void    revealNode(QListWidgetItem* line);
+
+    // Brings one node into view, switching scenes if it is in another one.
+    bool focusNode(const std::string& graph, loom::NodeId node);
 
     void report(const loom::Diagnostics& diagnostics);
 
@@ -114,8 +124,11 @@ private:
     QTabWidget* panel = nullptr;
     DetailsPanel* details = nullptr;
     ValueTree* values = nullptr;
+    PlaytestPanel* playtest = nullptr;
+    QDockWidget* playtestDock = nullptr;
     QAction* saveAction = nullptr;
     QAction* playAction = nullptr;
+    QAction* playHereAction = nullptr;
 
     // True while the scene list is being refilled, so its signals can be ignored.
     bool rebuilding = false;

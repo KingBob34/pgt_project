@@ -224,6 +224,66 @@ TEST_CASE("a flow output with no wire ends the story", "[runtime][interpreter]")
     REQUIRE(interpreter.finished());
 }
 
+TEST_CASE("a run can begin part way through a scene", "[runtime][interpreter]")
+{
+    loom::NodeInstance first = stub::node(2, "say");
+    first.pinValues["text"] = "the gate is shut";
+
+    loom::NodeInstance second = stub::node(3, "say");
+    second.pinValues["text"] = "the guard looks up";
+
+    const loom::Project project = makeProject({ makeGraph("gate",
+        { stub::node(1, "start"), first, second, stub::node(4, "end") },
+        { { 1, "out", 2, "in" }, { 2, "out", 3, "in" }, { 3, "out", 4, "in" } }) });
+
+    const loom::NodeCatalog catalog = stub::makeCatalog();
+    TestHost host;
+
+    loom::Interpreter interpreter(project, catalog, host);
+    interpreter.startAt("gate", 3);
+
+    REQUIRE(interpreter.finished());
+
+    // The entry point and everything before node 3 were never run.
+    REQUIRE(host.lines == std::vector<std::string>{ "the guard looks up" });
+}
+
+TEST_CASE("starting at a node that is not there is reported, not crashed",
+          "[runtime][interpreter]")
+{
+    const loom::Project project = makeProject({ makeGraph("gate",
+        { stub::node(1, "start") }, {}) });
+
+    const loom::NodeCatalog catalog = stub::makeCatalog();
+    TestHost host;
+
+    loom::Interpreter interpreter(project, catalog, host);
+    interpreter.startAt("gate", 99);
+
+    REQUIRE(interpreter.finished());
+    REQUIRE(host.commands.size() == 1);
+    REQUIRE(host.commands.front().name == "error");
+}
+
+TEST_CASE("a story that loops for ever is cut off rather than hanging",
+          "[runtime][interpreter]")
+{
+    // Two nodes wired into a ring, with nothing in it that ever suspends.
+    const loom::Project project = makeProject({ makeGraph("gate",
+        { stub::node(1, "start"), stub::node(2, "say"), stub::node(3, "say") },
+        { { 1, "out", 2, "in" }, { 2, "out", 3, "in" }, { 3, "out", 2, "in" } }) });
+
+    const loom::NodeCatalog catalog = stub::makeCatalog();
+    TestHost host;
+
+    loom::Interpreter interpreter(project, catalog, host);
+    interpreter.start();
+
+    REQUIRE(interpreter.finished());
+    REQUIRE(host.commands.size() == 1);
+    REQUIRE(host.commands.front().name == "error");
+}
+
 TEST_CASE("a missing entry graph stops rather than crashing", "[runtime][interpreter]")
 {
     loom::Project project = makeProject({ makeGraph("gate",

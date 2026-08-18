@@ -29,6 +29,7 @@ add_executable(LoomEngine WIN32
         src/pin_editor.cpp
         src/details_panel.cpp
         src/value_tree.cpp
+        src/playtest_panel.cpp
 )
 
 # Where the open and save dialogs start. Stands in until the packaged engine

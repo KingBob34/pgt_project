@@ -25,6 +25,11 @@
 
 namespace
 {
+    // A line of prose is read by its length, not by the window's. Past about
+    // seventy-five characters the eye loses its place coming back, so the story
+    // stops widening there and the window keeps the rest as margin.
+    constexpr int kReaderWidth = 760;
+
     constexpr int kStatusIndent = 12;
     constexpr int kStatusWidth = 420;
     constexpr int kStatusHeight = 480;
@@ -169,6 +174,7 @@ PlayerWindow::PlayerWindow()
     loom::registerBuiltinNodes(catalog);
 
     setWindowTitle("Loom Player");
+    setMinimumSize(640, 480);
     resize(900, 700);
 
     buildLayout();
@@ -197,14 +203,30 @@ void PlayerWindow::buildLayout()
     choices->setAttribute(Qt::WA_StyledBackground, true);
     choices->setStyleSheet("#choiceBar { background: white; }");
 
-    QWidget* centre = new QWidget;
+    QWidget* reader = new QWidget;
+    reader->setMaximumWidth(kReaderWidth);
 
-    QVBoxLayout* column = new QVBoxLayout(centre);
+    QVBoxLayout* column = new QVBoxLayout(reader);
     column->setContentsMargins(0, 0, 0, 0);
     column->setSpacing(0);
     column->addWidget(buildSystemBar(), 0);
     column->addWidget(passage, 1);
     column->addWidget(choices, 0);
+
+    QWidget* centre = new QWidget;
+
+    // The story takes what it can up to its own limit; the stretches take back
+    // whatever is left over, which is what centres it on a wide screen.
+    QHBoxLayout* across = new QHBoxLayout(centre);
+    across->setContentsMargins(0, 0, 0, 0);
+    across->setSpacing(0);
+    across->addStretch();
+    across->addWidget(reader, 1);
+    across->addStretch();
+
+    centre->setObjectName("gameSurface");
+    centre->setAttribute(Qt::WA_StyledBackground, true);
+    centre->setStyleSheet("#gameSurface { background: white; }");
 
     buildStatus(centre);
 

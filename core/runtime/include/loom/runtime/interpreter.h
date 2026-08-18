@@ -59,6 +59,11 @@ namespace loom
         Interpreter(const Project& project, const NodeCatalog& catalog, Host& host);
 
         void start();
+
+        // Begins at one node instead of at the story's entry point, so an
+        // author can try a scene from its middle.
+        void startAt(const std::string& graphName, NodeId nodeId);
+
         void resume();            // the player clicked to carry on
         void choose(int index);   // the player picked option index
 
@@ -72,11 +77,19 @@ namespace loom
         // The variables as they stand, for a front end that shows them.
         const std::map<std::string, Value>& state() const { return variables; }
 
+        // Which node the story is on. Empty and zero before it has begun.
+        std::string currentGraph() const;
+        NodeId      currentNode() const;
+
 
         SaveState save() const;
         void      restore(const SaveState& state);
 
     private:
+        // Everything a run starts from: no frames, no slots, and the variables
+        // back at the values the story declares.
+        void reset();
+
         bool enter(const std::string& graphName);
 
         // A fault the engine itself found, as opposed to one a node reports.

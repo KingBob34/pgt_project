@@ -10,6 +10,10 @@ namespace loom
 {
     namespace
     {
+        // How many nodes one player action may set off. Far more than a scene
+        // needs, and reached in an instant by a story that circles forever.
+        constexpr long long kStepBudget = 100000;
+
         const PinSpec* findPin(const std::vector<PinSpec>& pins, const std::string& name)
         {
             for (const PinSpec& pin : pins)
@@ -186,7 +190,7 @@ namespace loom
     {
     }
 
-    void Interpreter::start()
+    void Interpreter::reset()
     {
         callStack.clear();
         variables.clear();
@@ -195,6 +199,11 @@ namespace loom
         done = false;
 
         for (const auto& entry : project.variables) variables[entry.first] = entry.second.value;
+    }
+
+    void Interpreter::start()
+    {
+        reset();
 
         callStack.emplace_back();
 
@@ -203,6 +212,26 @@ namespace loom
             done = true;
             return;
         }
+
+        run();
+    }
+
+    void Interpreter::startAt(const std::string& graphName, NodeId nodeId)
+    {
+        reset();
+
+        const Graph* graph = project.findGraph(graphName);
+
+        if (graph == nullptr || graph->findNode(nodeId) == nullptr)
+        {
+            report("there is nothing to start from at node " + std::to_string(nodeId) +
+                   " in scene '" + graphName + "'");
+
+            done = true;
+            return;
+        }
+
+        callStack.push_back(Frame{ graphName, nodeId, {} });
 
         run();
     }
@@ -253,8 +282,24 @@ namespace loom
 
     void Interpreter::run()
     {
+        long long steps = 0;
+
         while (!done && pending.kind == Pending::Kind::None)
         {
+            // A graph may loop, so a story can be written that never stops.
+            // Without this the front end freezes with it.
+            if (++steps > kStepBudget)
+            {
+                const Frame& stuck = callStack.back();
+
+                report("the story ran " + std::to_string(kStepBudget) + " nodes without ever " +
+                       "stopping, and was cut off at node " + std::to_string(stuck.nodeId) +
+                       " in scene '" + stuck.graphName + "'");
+
+                done = true;
+                return;
+            }
+
             const Frame& frame = callStack.back();
 
             const Graph* graph = project.findGraph(frame.graphName);
@@ -340,6 +385,16 @@ namespace loom
         // Running the node again only re-issues the prompt: it suspended last
         // time without changing anything, so it will do the same now.
         type->execute(context);
+    }
+
+    std::string Interpreter::currentGraph() const
+    {
+        return callStack.empty() ? std::string() : callStack.back().graphName;
+    }
+
+    NodeId Interpreter::currentNode() const
+    {
+        return callStack.empty() ? 0 : callStack.back().nodeId;
     }
 
     bool Interpreter::finished() const
