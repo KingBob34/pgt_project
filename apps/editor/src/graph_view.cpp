@@ -604,14 +604,10 @@ void GraphView::contextMenuEvent(QContextMenuEvent* event)
 
         if (wire != nullptr)
         {
-            QMenu menu;
-            const QAction* cut = menu.addAction("Break Link");
-
-            if (menu.exec(event->globalPos()) == cut)
-            {
-                nodeScene()->undoStack().push(
-                    new QtNodes::DisconnectCommand(nodeScene(), wire->connectionId()));
-            }
+            // Cut where it was clicked. A wire has one thing that can be done
+            // to it, so a menu offering that one thing is a step in the way.
+            nodeScene()->undoStack().push(
+                new QtNodes::DisconnectCommand(nodeScene(), wire->connectionId()));
 
             event->accept();
             return;
