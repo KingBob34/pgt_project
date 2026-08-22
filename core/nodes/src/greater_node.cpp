@@ -10,12 +10,10 @@
 //  halts rather than quietly answering false.
 //
 //  Inputs
-//      in            Flow
 //      left          Any       must be a number
 //      right         Any       must be a number
 //
 //  Outputs
-//      out           Flow
 //      result        Bool
 //==============================================================================
 
@@ -30,12 +28,12 @@ namespace loom
             std::string displayName() const override { return ">"; }
             std::string category()    const override { return "Logic"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("left", "Left", PinType::Any),
+                return { dataIn("left", "Left", PinType::Any),
                          dataIn("right", "Right", PinType::Any),
-                         flowOut(),
                          dataOut("result", "Result", PinType::Bool) };
             }
 
@@ -44,18 +42,22 @@ namespace loom
                 const Value left = context.input("left");
                 const Value right = context.input("right");
 
-                // Variables carry no declared type, so ordering two things that have
-                // no order can only be caught here. Name the fault and halt.
+                // Variables carry no declared type, so ordering two things that
+                // have no order can only be caught here. A pure node has no
+                // branch to send that down, so it says so and answers false.
                 if (!isNumber(left) || !isNumber(right))
                 {
                     reportError(context, ">", "cannot order " + pinTypeLabel(typeName(left)) +
                                                 " and " + pinTypeLabel(typeName(right)));
+
+                    context.setOutput("result", false);
+
                     return FlowResult::stop();
                 }
 
                 context.setOutput("result", lessThan(right, left));
 
-                return FlowResult::continueOn("out");
+                return FlowResult::stop();
             }
         };
     }

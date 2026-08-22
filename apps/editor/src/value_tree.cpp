@@ -25,6 +25,13 @@ namespace
     constexpr int kValueWidth = 130;
     constexpr int kNarrowestColumn = 64;
 
+    // A list is indexed from zero, but the panel is not the file and the
+    // author is not a programmer: rows are counted the way people count.
+    std::string rowLabel(int at)
+    {
+        return std::to_string(at + 1);
+    }
+
     // The type and value columns are a widget or a summary the tree wrote
     // itself, so a typed edit only ever belongs to the name.
     class NameOnlyDelegate : public QStyledItemDelegate
@@ -334,7 +341,7 @@ void ValueTree::showValue(QTreeWidgetItem* row, const std::string& type)
             int index = 0;
             for (const loom::Value& item : held)
             {
-                addRow(row, std::to_string(index++), typeFromValue(item), item);
+                addRow(row, rowLabel(index++), typeFromValue(item), item);
             }
         }
         else if (type == loom::VariableType::Group && loom::isObject(held))
@@ -407,7 +414,10 @@ void ValueTree::renumber(QTreeWidgetItem* list)
     const bool was = filling;
     filling = true;
 
-    for (int at = 0; at < list->childCount(); ++at) list->child(at)->setText(0, QString::number(at));
+    for (int at = 0; at < list->childCount(); ++at)
+    {
+        list->child(at)->setText(0, QString::fromStdString(rowLabel(at)));
+    }
 
     filling = was;
 }
@@ -424,7 +434,7 @@ void ValueTree::addVariable()
     const bool indexed = parent != nullptr && typeOf(parent) == loom::VariableType::List;
 
     const std::string name = indexed
-                           ? std::to_string(parent->childCount())
+                           ? rowLabel(parent->childCount())
                            : uniqueName(parent, parent == nullptr ? "variable" : "field");
 
     filling = true;

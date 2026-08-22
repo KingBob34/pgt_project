@@ -60,7 +60,7 @@ namespace stub
 
         loom::FlowResult execute(loom::ExecutionContext& context) const override
         {
-            context.host().showText(context.inputString("text"), loom::TextStyle());
+            context.host().showText({ loom::TextRun{ context.inputString("text") } });
             return loom::FlowResult::continueOn("out");
         }
     };
@@ -136,7 +136,7 @@ namespace stub
                 return loom::FlowResult::continueOn("missing");
             }
 
-            context.host().showText(loom::toText(found), loom::TextStyle());
+            context.host().showText({ loom::TextRun{ loom::toText(found) } });
 
             return loom::FlowResult::continueOn("out");
         }
@@ -159,8 +159,7 @@ namespace stub
 
         loom::FlowResult execute(loom::ExecutionContext& context) const override
         {
-            context.host().askChoice({ loom::Option{ "first" }, loom::Option{ "second" } },
-                                     loom::TextStyle());
+            context.host().askChoice({ loom::Option{ "first" }, loom::Option{ "second" } });
             return loom::FlowResult::choose({ "first", "second" });
         }
     };

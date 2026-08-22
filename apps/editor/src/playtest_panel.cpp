@@ -35,6 +35,23 @@ namespace
                       channel(value, "b"), channel(value, "a"));
     }
 
+    // The look the author gave a run, as the inline style of one span. What
+    // was left unset is left out, so the reader default shows through.
+    QString spanOf(const loom::TextRun& run)
+    {
+        QString style;
+
+        if (!run.font.empty()) style += QString("font-family:'%1';").arg(toQt(run.font));
+        if (run.size > 0)      style += QString("font-size:%1pt;").arg(run.size);
+
+        if (!loom::isNull(run.color)) style += QString("color:%1;").arg(toColor(run.color).name());
+
+        const QString words = toQt(run.text).toHtmlEscaped().replace("\n", "<br>");
+
+        return QString("<span style=\"%1\">%2</span>").arg(style, words);
+    }
+
+
     // Tighter than the game's, because the panel shares the window with the
     // canvas and never gets the width a reader would.
     const char* const kOptionStyle =
@@ -113,15 +130,16 @@ void PlaytestPanel::stop()
     passage->clear();
 }
 
-void PlaytestPanel::showText(const std::string& text, const loom::TextStyle& style)
+void PlaytestPanel::showText(const std::vector<loom::TextRun>& runs)
 {
-    passage->append(QString("<p style=\"font-size:%1pt; color:%2;\">%3</p>")
-                        .arg(style.fontSize)
-                        .arg(toColor(style.color).name())
-                        .arg(toQt(text).toHtmlEscaped()));
+    QString html;
+
+    for (const loom::TextRun& run : runs) html += spanOf(run);
+
+    passage->append("<p>" + html + "</p>");
 }
 
-void PlaytestPanel::askChoice(const std::vector<loom::Option>& options, const loom::TextStyle&)
+void PlaytestPanel::askChoice(const std::vector<loom::Option>& options)
 {
     clearChoices();
 
@@ -146,6 +164,17 @@ void PlaytestPanel::askChoice(const std::vector<loom::Option>& options, const lo
 
 void PlaytestPanel::command(const std::string& name, const loom::Value& args)
 {
+    // The author is testing, so an ending goes into the passage rather than
+    // interrupting with the card the game puts up.
+    if (name == "ending")
+    {
+        const loom::Value* text = loom::objectGet(args, "text");
+
+        passage->append(QString("<p style=\"color:#8a8a8a;\">--- %1 ---</p>")
+                            .arg(text == nullptr ? QString() : toQt(loom::asString(*text))));
+        return;
+    }
+
     // Anything else is an extension this front end does not implement.
     if (name != "error") return;
 

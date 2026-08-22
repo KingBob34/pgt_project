@@ -1,6 +1,7 @@
 #ifndef LOOM_EDITOR_GRAPH_VIEW_H
 #define LOOM_EDITOR_GRAPH_VIEW_H
 #include <QPoint>
+#include <QSize>
 
 #include <QtNodes/GraphicsView>
 
@@ -19,8 +20,13 @@ public:
 public Q_SLOTS:
     void onDeleteSelectedObjects() override;
 
+    // Copy, then delete what was copied.
+    void onCutSelectedObjects();
+
 protected:
     void mousePressEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
@@ -32,11 +38,46 @@ private:
     // lying on the canvas.
     void endPan();
 
+    // Whether a pin's editor has the keyboard, in which case the canvas has
+    // no business reading the keys it is being sent.
+    bool typing() const;
+
+    // The node menu, raised where a wire was let go of. The draft names that
+    // wire, so the menu can offer only what would take it.
+    void openNodeMenu(const QPoint& at, const QtNodes::ConnectionId& draft);
+
+    // The frame whose title is written under this point, and the box that
+    // edits that title where it stands.
+    bool frameTitleAt(const QPointF& scenePos, QtNodes::NodeId& frame);
+    void renameFrame(QtNodes::NodeId frame);
+
+    // Cuts every wire reaching the pin under this point. False when the point
+    // is not on a pin at all, so the press can go on to mean what it usually
+    // means.
+    bool breakWiresAt(const QPointF& scenePos);
+
+    // The frame whose corner grip is under this point, if one is.
+    class NodeAdaptor* gripAt(const QPointF& scenePos, QtNodes::NodeId& frame);
+
+    // Everything a frame has completely surrounded joins it in the selection,
+    // so that dragging the frame drags what the author drew it round.
+    void gatherFramed(QtNodes::NodeId frame);
+
     // QtNodes moves the drawn node and never tells the model, so a dragged
     // node is saved where it used to be. Reads the truth back at every drop.
     void commitNodePositions();
 
     const loom::NodeCatalog& catalog;
+
+    // A wire is being dragged, and whether it found a port before it was
+    // dropped. A wire let go of over nothing offers to make a node instead.
+    bool drafting = false;
+    bool landed = false;
+
+    // A frame is being resized by its corner.
+    QtNodes::NodeId sizing = QtNodes::InvalidNodeId;
+    QPoint          sizingFrom;
+    QSize           sizingWas;
 
     bool panning = false;
     bool panned  = false;

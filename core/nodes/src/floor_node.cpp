@@ -9,11 +9,9 @@
 //  use is the author's choice, never the engine's.
 //
 //  Inputs
-//      in            Flow
 //      value         Float
 //
 //  Outputs
-//      out           Flow
 //      result        Int
 //==============================================================================
 
@@ -28,11 +26,11 @@ namespace loom
             std::string displayName() const override { return "Floor"; }
             std::string category()    const override { return "Maths"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("value", "Value", PinType::Float, Value(0.0)),
-                         flowOut(),
+                return { dataIn("value", "Value", PinType::Float, Value(0.0)),
                          dataOut("result", "Result", PinType::Int) };
             }
 
@@ -41,7 +39,7 @@ namespace loom
                 const double rounded = std::floor(context.inputFloat("value"));
                 context.setOutput("result", static_cast<long long>(rounded));
 
-                return FlowResult::continueOn("out");
+                return FlowResult::stop();
             }
         };
     }

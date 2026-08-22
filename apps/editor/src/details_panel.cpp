@@ -50,9 +50,19 @@ void DetailsPanel::setNode(NodeAdaptor* adaptor)
         return;
     }
 
-    connect(shown, &NodeAdaptor::pinValueTyped, this, &DetailsPanel::refresh);
-
     form->addRow(new QLabel("<b>" + shown->caption() + "</b>"));
+
+    // A node the author sizes themselves already carries the biggest editor
+    // there is. Repeating it here only forces the panel as wide as that node.
+    for (const loom::PinSpec& pin : shown->editablePins())
+    {
+        if (pin.type != loom::PinType::Prose) continue;
+
+        form->addRow(new QLabel("Edited on the canvas."));
+        return;
+    }
+
+    connect(shown, &NodeAdaptor::pinValueTyped, this, &DetailsPanel::refresh);
 
     const loom::NodeInstance& node = shown->instance();
 
@@ -68,7 +78,12 @@ void DetailsPanel::setNode(NodeAdaptor* adaptor)
 
                                                  shown->setPinValue(name, std::move(written));
                                              },
-                                             shown->variableSpecs());
+                                             shown->variableSpecs(),
+                                             [held = shown]
+                                             {
+                                                 return held.isNull() ? std::vector<ProseSlot>()
+                                                                      : held->valueSlots();
+                                             });
 
         if (made.widget == nullptr) continue;
 

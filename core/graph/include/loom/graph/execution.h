@@ -31,10 +31,23 @@ namespace loom
         static FlowResult stop();
     };
 
-    struct TextStyle
+    // One stretch of a passage, carrying the look the author gave it. A
+    // passage reaches the front end as a list of these, so a paragraph the
+    // author styled in pieces arrives in those pieces.
+    //
+    // Every field but the text is optional, and left out it means "whatever
+    // this reader normally uses" rather than a value of its own.
+    struct TextRun
     {
-        long long fontSize = 16;
-        Value     color;
+        std::string text;
+
+        std::string font;
+        long long   size = 0;
+        Value       color;
+
+        bool bold = false;
+        bool italic = false;
+        bool underline = false;
     };
 
     struct Option
@@ -50,8 +63,8 @@ namespace loom
     {
         virtual ~Host() = default;
 
-        virtual void showText(const std::string& text, const TextStyle& style) = 0;
-        virtual void askChoice(const std::vector<Option>& options, const TextStyle& style) = 0;
+        virtual void showText(const std::vector<TextRun>& passage) = 0;
+        virtual void askChoice(const std::vector<Option>& options) = 0;
         virtual void command(const std::string& /*name*/, const Value& /*args*/) {}
     };
 

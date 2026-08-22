@@ -6,12 +6,10 @@
 //  True when either side is true.
 //
 //  Inputs
-//      in            Flow
 //      left          Bool
 //      right         Bool
 //
 //  Outputs
-//      out           Flow
 //      result        Bool
 //==============================================================================
 
@@ -26,12 +24,12 @@ namespace loom
             std::string displayName() const override { return "Or"; }
             std::string category()    const override { return "Logic"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("left", "Left", PinType::Bool, Value(false)),
+                return { dataIn("left", "Left", PinType::Bool, Value(false)),
                          dataIn("right", "Right", PinType::Bool, Value(false)),
-                         flowOut(),
                          dataOut("result", "Result", PinType::Bool) };
             }
 
@@ -40,7 +38,7 @@ namespace loom
                 context.setOutput("result",
                                   context.inputBool("left") || context.inputBool("right"));
 
-                return FlowResult::continueOn("out");
+                return FlowResult::stop();
             }
         };
     }

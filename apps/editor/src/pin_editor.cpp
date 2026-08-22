@@ -1,5 +1,7 @@
 #include "pin_editor.h"
 
+#include <utility>
+
 #include <map>
 #include <string>
 
@@ -10,8 +12,12 @@
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+
+#include "prose_editor.h"
 #include <QSignalBlocker>
 #include <QSpinBox>
+
+#include "node_metrics.h"
 
 #include "loom/value/inspect.h"
 
@@ -19,17 +25,6 @@ namespace
 {
     constexpr int    kIntLimit   = 1000000000;
     constexpr double kFloatLimit = 1e9;
-
-    // An editor is only as wide as the value it holds; the caption is beside it.
-    constexpr int kNumberWidth = 88;
-    constexpr int kTextWidth = 140;
-    constexpr int kVariableWidth = 150;
-
-    constexpr int kLabelWidth = 120;
-    constexpr int kLabelRows = 3;
-
-    constexpr int kParagraphWidth = 240;
-    constexpr int kParagraphRows = 4;
 
     PinEditor makeBool(const loom::PinSpec&, const loom::Value& value, const PinChanged& changed)
     {
@@ -82,7 +77,7 @@ namespace
                 changed(box->toPlainText().toStdString());
             });
 
-            return { box, pin.textShape == loom::TextShape::Passage ? kParagraphRows : kLabelRows };
+            return { box, pin.textShape == loom::TextShape::Passage ? metrics::paragraphRows : metrics::labelRows };
         }
 
         QLineEdit* field = new QLineEdit(text);
@@ -128,6 +123,19 @@ namespace
         return { box, 1 };
     }
 
+    PinEditor makeProse(const loom::Value& value, const PinChanged& changed, ProseSlots offer)
+    {
+        ProseEditor* box = new ProseEditor(std::move(offer));
+        box->setPassage(value);
+
+        QObject::connect(box, &ProseEditor::edited, box, [box, changed]
+        {
+            changed(box->passage());
+        });
+
+        return { box, metrics::proseRows };
+    }
+
     using Factory = PinEditor (*)(const loom::PinSpec&, const loom::Value&, const PinChanged&);
 
     // The pin types an author may type into. Anything else is fed by a wire.
@@ -145,9 +153,11 @@ namespace
 }
 
 PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed,
-                        const std::map<std::string, loom::VariableSpec>& variables)
+                        const std::map<std::string, loom::VariableSpec>& variables,
+                        ProseSlots offer)
 {
     if (pin.type == loom::PinType::VariableName) return makeVariable(value, changed, variables);
+    if (pin.type == loom::PinType::Prose) return makeProse(value, changed, std::move(offer));
 
     const auto factory = editableTypes().find(pin.type);
 
@@ -162,22 +172,28 @@ void fitToNode(QWidget* editor, const loom::PinSpec& pin)
 
     if (pin.type == loom::PinType::VariableName)
     {
-        editor->setFixedWidth(kVariableWidth);
+        editor->setFixedWidth(metrics::variableWidth);
+        return;
+    }
+
+    if (pin.type == loom::PinType::Prose)
+    {
+        editor->setFixedWidth(metrics::proseWidth);
         return;
     }
 
     if (pin.type == loom::PinType::String)
     {
-        if (pin.textShape == loom::TextShape::Passage)    editor->setFixedWidth(kParagraphWidth);
-        else if (pin.textShape == loom::TextShape::Label) editor->setFixedWidth(kLabelWidth);
-        else                                              editor->setFixedWidth(kTextWidth);
+        if (pin.textShape == loom::TextShape::Passage)    editor->setFixedWidth(metrics::paragraphWidth);
+        else if (pin.textShape == loom::TextShape::Label) editor->setFixedWidth(metrics::labelWidth);
+        else                                              editor->setFixedWidth(metrics::textWidth);
 
         return;
     }
 
     if (pin.type == loom::PinType::Int || pin.type == loom::PinType::Float)
     {
-        editor->setFixedWidth(kNumberWidth);
+        editor->setFixedWidth(metrics::numberWidth);
     }
 }
 
@@ -202,6 +218,12 @@ bool showInEditor(QWidget* editor, const loom::Value& value)
     if (QDoubleSpinBox* box = qobject_cast<QDoubleSpinBox*>(editor))
     {
         box->setValue(loom::asFloat(value));
+        return true;
+    }
+
+    if (ProseEditor* box = qobject_cast<ProseEditor*>(editor))
+    {
+        box->setPassage(value);
         return true;
     }
 

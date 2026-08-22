@@ -12,7 +12,7 @@
         {
           "from": 2,
           "fromPin": "out",
-          "to": 5,
+          "to": 9,
           "toPin": "in"
         },
         {
@@ -23,27 +23,9 @@
         },
         {
           "from": 5,
-          "fromPin": "notFound",
-          "to": 13,
-          "toPin": "in"
-        },
-        {
-          "from": 5,
-          "fromPin": "out",
-          "to": 6,
-          "toPin": "in"
-        },
-        {
-          "from": 5,
           "fromPin": "value",
           "to": 6,
           "toPin": "left"
-        },
-        {
-          "from": 6,
-          "fromPin": "out",
-          "to": 9,
-          "toPin": "in"
         },
         {
           "from": 6,
@@ -68,6 +50,18 @@
           "fromPin": "chosen1",
           "to": 11,
           "toPin": "in"
+        },
+        {
+          "from": 10,
+          "fromPin": "out",
+          "to": 16,
+          "toPin": "in"
+        },
+        {
+          "from": 11,
+          "fromPin": "out",
+          "to": 17,
+          "toPin": "in"
         }
       ],
       "meta": {
@@ -87,14 +81,20 @@
         {
           "id": 2,
           "pinValues": {
-            "fontSize": 18,
-            "textIn": "The guard blocks the gate. His eyes go to your purse."
+            "textIn": {
+              "spans": [
+                {
+                  "text": "The guard blocks the gate. His eyes go to your purse."
+                }
+              ]
+            }
           },
           "position": {
             "x": 460.0,
             "y": 0.0
           },
-          "type": "showText"
+          "type": "showText",
+          "extraPins": 1
         },
         {
           "id": 3,
@@ -102,8 +102,8 @@
             "name": "gold"
           },
           "position": {
-            "x": 960.0,
-            "y": 285.0
+            "x": 555.0,
+            "y": 495.0
           },
           "type": "setVariable"
         },
@@ -113,8 +113,8 @@
             "value": 25
           },
           "position": {
-            "x": 960.0,
-            "y": 565.0
+            "x": 315.0,
+            "y": 765.0
           },
           "type": "integerValue"
         },
@@ -124,16 +124,16 @@
             "name": "gold"
           },
           "position": {
-            "x": 1460.0,
-            "y": 0.0
+            "x": 960.0,
+            "y": 450.0
           },
           "type": "getVariable"
         },
         {
           "id": 6,
           "position": {
-            "x": 2111.0,
-            "y": -96.0
+            "x": 1305.0,
+            "y": 525.0
           },
           "type": "greater"
         },
@@ -143,8 +143,8 @@
             "value": 20
           },
           "position": {
-            "x": 2093.0,
-            "y": 198.0
+            "x": 990.0,
+            "y": 615.0
           },
           "type": "integerValue"
         },
@@ -152,51 +152,80 @@
           "extraPins": 2,
           "id": 9,
           "pinValues": {
-            "fontSize": 14,
             "option0": "Bribe the guard",
             "option1": "Walk away"
           },
           "position": {
-            "x": 2495.1600000000003,
-            "y": -97.20000000000002
+            "x": 1575.0,
+            "y": 15.0
           },
           "type": "showChoices"
         },
         {
           "id": 10,
           "pinValues": {
-            "fontSize": 18,
-            "textIn": "Twenty gold changes hands. The gate swings open."
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Twenty gold changes hands. The gate swings open."
+                }
+              ]
+            }
           },
           "position": {
-            "x": 2980.1600000000003,
-            "y": -271.20000000000005
+            "x": 2430.0,
+            "y": -200.0
           },
-          "type": "showText"
+          "type": "showText",
+          "extraPins": 1
         },
         {
           "id": 11,
           "pinValues": {
-            "fontSize": 18,
-            "textIn": "You turn back towards the village, purse still heavy."
+            "textIn": {
+              "spans": [
+                {
+                  "text": "You turn back towards the village, purse still heavy."
+                }
+              ]
+            }
           },
           "position": {
-            "x": 2980.1600000000003,
-            "y": 168.79999999999995
+            "x": 2430.0,
+            "y": 240.0
           },
-          "type": "showText"
+          "type": "showText",
+          "extraPins": 1
         },
         {
-          "id": 13,
+          "id": 16,
           "pinValues": {
-            "fontSize": 18,
-            "textIn": "You have no money at all."
+            "text": "Ending 1"
           },
           "position": {
-            "x": 1460.0,
-            "y": 420.0
+            "x": 3159.0,
+            "y": -158.39999999999998
           },
-          "type": "showText"
+          "type": "end"
+        },
+        {
+          "id": 17,
+          "pinValues": {
+            "text": "Ending 2"
+          },
+          "position": {
+            "x": 3255.0,
+            "y": 270.0
+          },
+          "type": "end"
+        },
+        {
+          "id": 19,
+          "position": {
+            "x": 990.0,
+            "y": 285.0
+          },
+          "type": "integerValue"
         }
       ]
     }
@@ -205,11 +234,19 @@
     "author": "KingBob",
     "title": "Gate Test"
   },
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "variables": {
     "gold": {
       "type": "int",
-      "value": 15
+      "value": 25
+    },
+    "pets": {
+      "type": "group",
+      "value": {
+        "dog": {
+          "back": []
+        }
+      }
     }
   }
 }

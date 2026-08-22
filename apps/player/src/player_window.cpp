@@ -1,5 +1,7 @@
 #include "player_window.h"
 
+#include "option_button.h"
+
 #include <functional>
 
 #include <QAbstractItemView>
@@ -31,6 +33,7 @@ namespace
     constexpr int kPanelWidth = 420;
     constexpr int kStatusHeight = 480;
     constexpr int kSettingsHeight = 240;
+    constexpr int kEndingHeight = 300;
 
     // Quieter than a choice: it is a way to look at the game, not to play it.
     const char* const kSystemButtonStyle =
@@ -73,6 +76,9 @@ namespace
 
     // The passage is white whatever the desktop theme is, so the buttons state
     // their own colours instead of inheriting a dark palette.
+    // Options are unstyled by the author, so the shell settles their size.
+    constexpr int kOptionSize = 16;
+
     QString optionStyle(int fontSize)
     {
         return QString("QPushButton {"
@@ -118,6 +124,23 @@ namespace
         return QColor(channel(value, "r"), channel(value, "g"),
                       channel(value, "b"), channel(value, "a"));
     }
+
+    // The look the author gave a run, as the inline style of one span. What
+    // was left unset is left out, so the reader default shows through.
+    QString spanOf(const loom::TextRun& run)
+    {
+        QString style;
+
+        if (!run.font.empty()) style += QString("font-family:'%1';").arg(toQt(run.font));
+        if (run.size > 0)      style += QString("font-size:%1pt;").arg(run.size);
+
+        if (!loom::isNull(run.color)) style += QString("color:%1;").arg(toColor(run.color).name());
+
+        const QString words = toQt(run.text).toHtmlEscaped().replace("\n", "<br>");
+
+        return QString("<span style=\"%1\">%2</span>").arg(style, words);
+    }
+
 
     QString countOf(int count, const QString& noun)
     {
@@ -253,12 +276,12 @@ void PlayerWindow::buildLayout()
     passage = new QTextEdit;
     passage->setReadOnly(true);
     passage->setFrameStyle(QFrame::NoFrame);
-    passage->setStyleSheet("QTextEdit { background: white; padding: 24px; }");
+    passage->setStyleSheet("QTextEdit { background: white; padding: 40px 72px; }");
 
     // Stacked, not side by side: an option is often a whole sentence, and a
     // row of them squeezes every button down to nothing.
     choiceRow = new QVBoxLayout;
-    choiceRow->setContentsMargins(24, 12, 24, 24);
+    choiceRow->setContentsMargins(72, 12, 72, 40);
     choiceRow->setSpacing(8);
 
     choices = new QWidget;
@@ -285,6 +308,7 @@ void PlayerWindow::buildLayout()
 
     buildStatus(centre);
     buildSettings(centre);
+    buildEnding(centre);
 
     centre->installEventFilter(this);
 
@@ -377,6 +401,64 @@ void PlayerWindow::buildSettings(QWidget* surface)
                                   [this] { showOverlay(settingsOverlay, false); });
 }
 
+void PlayerWindow::buildEnding(QWidget* surface)
+{
+    endingText = new QLabel;
+    endingText->setWordWrap(true);
+    endingText->setAlignment(Qt::AlignCenter);
+    endingText->setStyleSheet("color: #1a1a1a; font-size: 14pt;");
+
+    QPushButton* again = new QPushButton("Play Again");
+    again->setStyleSheet(kSystemButtonStyle);
+
+    connect(again, &QPushButton::clicked, this, &PlayerWindow::restart);
+
+    QPushButton* quit = new QPushButton("Quit");
+    quit->setStyleSheet(kSystemButtonStyle);
+
+    connect(quit, &QPushButton::clicked, this, &QWidget::close);
+
+    QHBoxLayout* row = new QHBoxLayout;
+    row->setContentsMargins(0, 0, 0, 0);
+    row->setSpacing(8);
+    row->addStretch();
+    row->addWidget(again);
+    row->addWidget(quit);
+    row->addStretch();
+
+    QWidget* body = new QWidget;
+
+    QVBoxLayout* column = new QVBoxLayout(body);
+    column->setContentsMargins(0, 0, 0, 0);
+    column->setSpacing(16);
+    column->addStretch();
+    column->addWidget(endingText);
+    column->addStretch();
+    column->addLayout(row);
+
+    endingOverlay = makeOverlay(surface, "The End", body, kEndingHeight,
+                                [this] { showOverlay(endingOverlay, false); });
+}
+
+void PlayerWindow::showEnding(const QString& text)
+{
+    endingText->setText(text);
+
+    showOverlay(endingOverlay, true);
+}
+
+void PlayerWindow::restart()
+{
+    if (interpreter == nullptr) return;
+
+    showOverlay(endingOverlay, false);
+
+    clearChoices();
+    passage->clear();
+
+    interpreter->start();
+}
+
 void PlayerWindow::showOverlay(QWidget* overlay, bool on)
 {
     systemBar->setVisible(!on);
@@ -396,7 +478,7 @@ bool PlayerWindow::eventFilter(QObject* watched, QEvent* event)
 {
     if (event->type() == QEvent::Resize)
     {
-        for (QWidget* overlay : { statusOverlay, settingsOverlay })
+        for (QWidget* overlay : { statusOverlay, settingsOverlay, endingOverlay })
         {
             if (overlay != nullptr && watched == overlay->parentWidget())
             {
@@ -514,22 +596,23 @@ void PlayerWindow::openStory(const QString& path)
     interpreter->start();
 }
 
-void PlayerWindow::showText(const std::string& text, const loom::TextStyle& style)
+void PlayerWindow::showText(const std::vector<loom::TextRun>& runs)
 {
-    passage->append(QString("<p style=\"font-size:%1pt; color:%2;\">%3</p>")
-                        .arg(style.fontSize)
-                        .arg(toColor(style.color).name())
-                        .arg(toQt(text).toHtmlEscaped()));
+    QString html;
+
+    for (const loom::TextRun& run : runs) html += spanOf(run);
+
+    passage->append("<p>" + html + "</p>");
 }
 
-void PlayerWindow::askChoice(const std::vector<loom::Option>& options, const loom::TextStyle& style)
+void PlayerWindow::askChoice(const std::vector<loom::Option>& options)
 {
     clearChoices();
 
     for (std::size_t index = 0; index < options.size(); ++index)
     {
-        QPushButton* button = new QPushButton(toQt(options[index].text));
-        button->setStyleSheet(optionStyle(static_cast<int>(style.fontSize)));
+        OptionButton* button = new OptionButton(toQt(options[index].text), kOptionSize);
+        button->setStyleSheet(optionStyle(kOptionSize));
 
         // Locked, not gone: the route stays on screen until the story opens it.
         button->setEnabled(options[index].enabled);
@@ -545,10 +628,16 @@ void PlayerWindow::askChoice(const std::vector<loom::Option>& options, const loo
     }
 }
 
-void PlayerWindow::command(const std::string&, const loom::Value&)
+void PlayerWindow::command(const std::string& name, const loom::Value& args)
 {
-    // A game says nothing about engine faults. The author meets them in the
-    // editor's console, where they lead back to the node that raised them.
+    // An ending is the one thing the engine says that is meant for the player.
+    // Faults are not: the author meets those in the editor's console, where
+    // they lead back to the node that raised them.
+    if (name != "ending") return;
+
+    const loom::Value* text = loom::objectGet(args, "text");
+
+    showEnding(text == nullptr ? QString() : toQt(loom::asString(*text)));
 }
 
 void PlayerWindow::chooseOption(int index)

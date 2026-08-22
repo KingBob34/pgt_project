@@ -14,8 +14,6 @@
 //      in            Flow
 //      option0..N    String    the label on each button
 //      enabled0..N   Bool      whether that button can be picked
-//      fontSize      Int
-//      color         Color
 //
 //  Outputs
 //      chosen0..N    Flow      taken when that option is picked
@@ -51,9 +49,6 @@ namespace loom
                                            PinType::Bool, Value(true)));
                 }
 
-                specs.push_back(dataIn("fontSize", "Font Size", PinType::Int, Value(16)));
-                specs.push_back(dataIn("color", "Color", PinType::Color, defaultColor()));
-
                 for (int index = 0; index < extraPins; ++index)
                 {
                     specs.push_back(flowOut(chosenName(index), optionLabel(index)));
@@ -76,11 +71,7 @@ namespace loom
                     pins.push_back(chosenName(index));
                 }
 
-                TextStyle style;
-                style.fontSize = context.inputInt("fontSize");
-                style.color = context.input("color");
-
-                context.host().askChoice(options, style);
+                context.host().askChoice(options);
 
                 return FlowResult::choose(pins);
             }

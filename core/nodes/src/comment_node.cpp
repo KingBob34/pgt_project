@@ -3,11 +3,14 @@
 //==============================================================================
 //  Comment                                                        Utility
 //------------------------------------------------------------------------------
-//  A note to whoever reads the graph next, drawn on the canvas and ignored by
-//  the engine. With no flow pins it can never become part of the story.
+//  A frame drawn round part of the graph, with a title on it. The engine never
+//  runs it. Its size is kept on pins like any other value, so a story that has
+//  one in it is the same file as a story that does not.
 //
 //  Inputs
 //      text          String
+//      width         Int
+//      height        Int
 //==============================================================================
 
 namespace loom
@@ -21,10 +24,14 @@ namespace loom
             std::string displayName() const override { return "Comment"; }
             std::string category()    const override { return "Utility"; }
 
+            bool isFrame() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                // No flow pins: a note on the canvas, never part of the story.
-                return { dataIn("text", "", PinType::String, Value("")) };
+                // No connectors of any kind: nothing may be wired to a frame.
+                return { labelTextIn("text", "Title", Value("Comment")),
+                         dataIn("width",  "Width",  PinType::Int, Value(360)),
+                         dataIn("height", "Height", PinType::Int, Value(220)) };
             }
         };
     }

@@ -6,11 +6,9 @@
 //  Widens a whole number into a decimal one. A Bool arrives as 1 or 0.
 //
 //  Inputs
-//      in            Flow
 //      value         Any
 //
 //  Outputs
-//      out           Flow
 //      result        Float
 //==============================================================================
 
@@ -25,11 +23,11 @@ namespace loom
             std::string displayName() const override { return "To Float"; }
             std::string category()    const override { return "Conversion"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("value", "Value", PinType::Any),
-                         flowOut(),
+                return { dataIn("value", "Value", PinType::Any),
                          dataOut("result", "Result", PinType::Float) };
             }
 
@@ -41,23 +39,25 @@ namespace loom
                 if (isInt(given))
                 {
                     context.setOutput("result", static_cast<double>(asInt(given)));
-                    return FlowResult::continueOn("out");
+                    return FlowResult::stop();
                 }
 
                 if (isFloat(given))
                 {
                     context.setOutput("result", asFloat(given));
-                    return FlowResult::continueOn("out");
+                    return FlowResult::stop();
                 }
 
                 if (isBool(given))
                 {
                     context.setOutput("result", asBool(given) ? 1.0 : 0.0);
-                    return FlowResult::continueOn("out");
+                    return FlowResult::stop();
                 }
 
                 reportError(context, "To Float",
                             "cannot read a " + pinTypeLabel(typeName(given)) + " as a number");
+
+                context.setOutput("result", 0.0);
 
                 return FlowResult::stop();
             }

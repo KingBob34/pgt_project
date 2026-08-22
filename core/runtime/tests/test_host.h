@@ -10,12 +10,16 @@
 class TestHost : public loom::Host
 {
 public:
-    void showText(const std::string& text, const loom::TextStyle&) override
+    void showText(const std::vector<loom::TextRun>& passage) override
     {
-        lines.push_back(text);
+        std::string words;
+
+        for (const loom::TextRun& run : passage) words += run.text;
+
+        lines.push_back(words);
     }
 
-    void askChoice(const std::vector<loom::Option>& options, const loom::TextStyle&) override
+    void askChoice(const std::vector<loom::Option>& options) override
     {
         offered.clear();
         locked.clear();

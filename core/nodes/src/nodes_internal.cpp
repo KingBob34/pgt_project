@@ -1,5 +1,7 @@
 #include "nodes_internal.h"
 
+#include "loom/graph/prose.h"
+
 #include <utility>
 
 namespace loom
@@ -56,14 +58,21 @@ namespace loom
                  PinType::Unset, Value(), TextShape::Line, std::move(follows) };
     }
 
-    Value defaultColor()
+    PinSpec sizeIn(std::string name, int start)
     {
-        Value color = Value::object();
-        color["r"] = 0.0;
-        color["g"] = 0.0;
-        color["b"] = 0.0;
-        color["a"] = 1.0;
-        return color;
+        PinSpec pin = dataIn(std::move(name), "", PinType::Int, Value(start));
+        pin.hidden = true;
+
+        return pin;
+    }
+
+    PinSpec proseIn(std::string name, std::string label)
+    {
+        PinSpec pin = dataIn(std::move(name), std::move(label), PinType::Prose,
+                             prose::fromPlain(""));
+        pin.textShape = TextShape::Passage;
+
+        return pin;
     }
 
     void reportError(ExecutionContext& context, const std::string& node, const std::string& detail)

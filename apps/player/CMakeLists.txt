@@ -5,6 +5,7 @@ qt_standard_project_setup()
 # WIN32 keeps the console window from appearing behind the game
 add_executable(LoomGame WIN32
         src/main.cpp
+        src/option_button.cpp
         src/player_window.cpp
 )
 

@@ -1,3 +1,5 @@
+#include <set>
+
 #include "loom/runtime/interpreter.h"
 
 #include <tuple>
@@ -62,14 +64,22 @@ namespace loom
                            std::map<PinRef, Value>& outputs,
                            std::map<std::string, Value>& variables,
                            const std::map<std::string, VariableSpec>& declared,
+                           const NodeCatalog& catalog,
+                           std::set<NodeId>& working,
                            Host& host)
                 : graph(graph), node(node), pins(pins),
-                  outputs(outputs), variables(variables), declared(declared), hostRef(host) {}
+                  outputs(outputs), variables(variables), declared(declared),
+                  catalog(catalog), working(working), hostRef(host) {}
 
             Value input(const std::string& pin) const override
             {
                 if (const Connection* wire = graph.incoming(node.id, pin))
                 {
+                    // A pure node sits off the flow, so nothing has run it. It
+                    // is run here, the moment its answer is wanted, and again
+                    // the next time: what it reads may have changed in between.
+                    workOut(wire->from);
+
                     const auto slot = outputs.find(PinRef{ graph.name, wire->from, wire->fromPin });
                     if (slot != outputs.end()) return slot->second;
 
@@ -162,6 +172,35 @@ namespace loom
             Host& host() override { return hostRef; }
 
         private:
+            void workOut(NodeId source) const
+            {
+                const NodeInstance* upstream = graph.findNode(source);
+                if (upstream == nullptr) return;
+
+                const NodeType* type = catalog.find(upstream->type);
+                if (type == nullptr || !type->isPure()) return;
+
+                // Asked for while it is already being worked out: the value
+                // depends on itself. There is no answer to give, so it is
+                // reported and whatever the slot holds is left alone.
+                if (!working.insert(source).second)
+                {
+                    reportFault(hostRef, "the value on node " + std::to_string(source) +
+                                         " in scene '" + graph.name + "' depends on itself");
+                    return;
+                }
+
+                const std::vector<PinSpec> made = type->pins(upstream->extraPins);
+
+                RuntimeContext nested(graph, *upstream, made, outputs, variables, declared,
+                                      catalog, working, hostRef);
+
+                // Discarded: a pure node has no flow output to be sent along.
+                type->execute(nested);
+
+                working.erase(source);
+            }
+
             const Graph&                  graph;
             const NodeInstance&           node;
             const std::vector<PinSpec>&   pins;
@@ -169,6 +208,9 @@ namespace loom
             std::map<std::string, Value>& variables;
 
             const std::map<std::string, VariableSpec>& declared;
+
+            const NodeCatalog& catalog;
+            std::set<NodeId>&  working;
 
             Host& hostRef;
         };
@@ -313,7 +355,8 @@ namespace loom
             }
 
             const std::vector<PinSpec> pins = type->pins(node->extraPins);
-            RuntimeContext context(*graph, *node, pins, outputs, variables, project.variables, host);
+            RuntimeContext context(*graph, *node, pins, outputs, variables, project.variables,
+                               catalog, working, host);
 
             const FlowResult result = type->execute(context);
 
@@ -380,7 +423,8 @@ namespace loom
         if (type == nullptr) return;
 
         const std::vector<PinSpec> pins = type->pins(node->extraPins);
-        RuntimeContext context(*graph, *node, pins, outputs, variables, project.variables, host);
+        RuntimeContext context(*graph, *node, pins, outputs, variables, project.variables,
+                               catalog, working, host);
 
         // Running the node again only re-issues the prompt: it suspended last
         // time without changing anything, so it will do the same now.

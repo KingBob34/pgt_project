@@ -1,5 +1,7 @@
 add_library(loom_graph STATIC
         src/pin.cpp
+        src/node.cpp
+        src/prose.cpp
         src/execution.cpp
         src/graph.cpp
         src/catalog.cpp

@@ -29,8 +29,8 @@ public:
 
     void stop();
 
-    void showText(const std::string& text, const loom::TextStyle& style) override;
-    void askChoice(const std::vector<loom::Option>& options, const loom::TextStyle& style) override;
+    void showText(const std::vector<loom::TextRun>& runs) override;
+    void askChoice(const std::vector<loom::Option>& options) override;
     void command(const std::string& name, const loom::Value& args) override;
 
 Q_SIGNALS:

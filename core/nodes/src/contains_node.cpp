@@ -6,12 +6,10 @@
 //  True when the list holds a value equal to the one given.
 //
 //  Inputs
-//      in            Flow
 //      list          List
 //      value         Any
 //
 //  Outputs
-//      out           Flow
 //      result        Bool
 //==============================================================================
 
@@ -26,12 +24,12 @@ namespace loom
             std::string displayName() const override { return "Contains"; }
             std::string category()    const override { return "Lists"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("list", "List", PinType::List),
+                return { dataIn("list", "List", PinType::List),
                          dataIn("value", "Value", PinType::Any),
-                         flowOut(),
                          dataOut("result", "Result", PinType::Bool) };
             }
 
@@ -43,12 +41,15 @@ namespace loom
                 {
                     reportError(context, "Contains",
                                 "cannot look inside a " + pinTypeLabel(typeName(list)));
+
+                    context.setOutput("result", false);
+
                     return FlowResult::stop();
                 }
 
                 context.setOutput("result", listContains(list, context.input("value")));
 
-                return FlowResult::continueOn("out");
+                return FlowResult::stop();
             }
         };
     }

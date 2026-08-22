@@ -12,6 +12,7 @@ namespace loom
         catalog.add(makeShowChoicesNode());
         catalog.add(makeBranchNode());
         catalog.add(makeGoToSceneNode());
+        catalog.add(makeEndNode());
 
         catalog.add(makeGetVariableNode());
         catalog.add(makeSetVariableNode());
@@ -25,12 +26,12 @@ namespace loom
         catalog.add(makeIntegerValueNode());
         catalog.add(makeFloatValueNode());
         catalog.add(makeBoolValueNode());
-        catalog.add(makeColorValueNode());
         catalog.add(makeRandomIntegerNode());
 
         catalog.add(makeAddNode());
         catalog.add(makeSubtractNode());
         catalog.add(makeMultiplyNode());
+        catalog.add(makeDivideNode());
         catalog.add(makeFloorNode());
         catalog.add(makeCeilNode());
         catalog.add(makeRoundNode());

@@ -6,11 +6,9 @@
 //  How many items the list holds.
 //
 //  Inputs
-//      in            Flow
 //      list          List
 //
 //  Outputs
-//      out           Flow
 //      result        Int
 //==============================================================================
 
@@ -25,11 +23,11 @@ namespace loom
             std::string displayName() const override { return "List Count"; }
             std::string category()    const override { return "Lists"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("list", "List", PinType::List),
-                         flowOut(),
+                return { dataIn("list", "List", PinType::List),
                          dataOut("result", "Result", PinType::Int) };
             }
 
@@ -41,12 +39,15 @@ namespace loom
                 {
                     reportError(context, "List Count",
                                 "cannot count a " + pinTypeLabel(typeName(list)));
+
+                    context.setOutput("result", 0);
+
                     return FlowResult::stop();
                 }
 
                 context.setOutput("result", static_cast<long long>(listSize(list)));
 
-                return FlowResult::continueOn("out");
+                return FlowResult::stop();
             }
         };
     }

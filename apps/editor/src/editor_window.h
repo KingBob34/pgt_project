@@ -9,9 +9,12 @@
 #include <vector>
 
 #include <QMainWindow>
+#include <QPointer>
 #include <QString>
 
 #include <QtNodes/NodeDelegateModelRegistry>
+
+#include "canvas_faults.h"
 
 #include "loom/graph/catalog.h"
 #include "loom/graph/diagnostics.h"
@@ -28,6 +31,9 @@ class QDockWidget;
 class QListWidget;
 class QListWidgetItem;
 class QAction;
+class QMenu;
+class InlineEdit;
+class QTabBar;
 class QTabWidget;
 
 class EditorWindow : public QMainWindow
@@ -86,6 +92,10 @@ private:
 
     void syncDetails();
 
+    // The Details tab exists only while a node is selected: an empty panel
+    // saying it is empty is a tab the author has to learn to ignore.
+    void showDetails(bool on);
+
     // Hands the panel's names to the nodes, which offer them in their menus.
     void syncVariableNames();
     void renameVariable(const QString& before, const QString& after);
@@ -103,12 +113,27 @@ private:
     void switchScene(int index);
     void addScene();
     void removeScene();
-    void renameScene(QListWidgetItem* item);
+    void renameScene(int index);
+
+    // Display order only. Which scene the story starts in is 'entry', not the
+    // first tab, so the author may keep them in whatever order reads best.
+    void reorderScenes(int from, int to);
+
+    // Applies a name typed on a tab. Takes the old name rather than an index
+    // because the tabs may have been dragged about while the box was open.
+    void takeSceneName(const std::string& was, const std::string& typed);
+
+    // Puts away the rename box, if one is up.
+    void closeSceneBox();
 
     std::string uniqueSceneName(const std::string& wanted) const;
     void reportSceneReferences(const std::string& name);
 
     loom::NodeCatalog catalog;
+
+    // Read by the painters every time the canvas redraws, so it outlives the
+    // scene it colours.
+    CanvasFaults faults;
 
     // Declared first: the registry hands a reference to it to every node.
     std::map<std::string, loom::VariableSpec> variableSpecs;
@@ -125,12 +150,17 @@ private:
     GraphView*  view  = nullptr;
 
     QListWidget* console = nullptr;
-    QListWidget* scenes = nullptr;
+    QTabBar* scenes = nullptr;
+
+    // The box renaming a scene, while one is up. It is drawn over one tab and
+    // means nothing once the tabs have moved under it.
+    QPointer<InlineEdit> sceneBox;
     QTabWidget* panel = nullptr;
     DetailsPanel* details = nullptr;
     ValueTree* values = nullptr;
     PlaytestPanel* playtest = nullptr;
     QDockWidget* playtestDock = nullptr;
+    QMenu* panelMenu = nullptr;
     QAction* saveAction = nullptr;
     QAction* playAction = nullptr;
     QAction* playHereAction = nullptr;

@@ -6,11 +6,9 @@
 //  Renders any value as the text of it, so a number can reach a text box.
 //
 //  Inputs
-//      in            Flow
 //      value         Any
 //
 //  Outputs
-//      out           Flow
 //      result        String
 //==============================================================================
 
@@ -25,11 +23,11 @@ namespace loom
             std::string displayName() const override { return "To String"; }
             std::string category()    const override { return "Conversion"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("value", "Value", PinType::Any),
-                         flowOut(),
+                return { dataIn("value", "Value", PinType::Any),
                          dataOut("result", "Result", PinType::String) };
             }
 
@@ -37,7 +35,7 @@ namespace loom
             {
                 context.setOutput("result", toText(context.input("value")));
 
-                return FlowResult::continueOn("out");
+                return FlowResult::stop();
             }
         };
     }

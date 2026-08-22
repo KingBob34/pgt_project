@@ -7,12 +7,10 @@
 //  types can be compared for equality, so this node never faults.
 //
 //  Inputs
-//      in            Flow
 //      left          Any
 //      right         Any
 //
 //  Outputs
-//      out           Flow
 //      result        Bool
 //==============================================================================
 
@@ -27,12 +25,12 @@ namespace loom
             std::string displayName() const override { return "=="; }
             std::string category()    const override { return "Logic"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("left", "Left", PinType::Any),
+                return { dataIn("left", "Left", PinType::Any),
                          dataIn("right", "Right", PinType::Any),
-                         flowOut(),
                          dataOut("result", "Result", PinType::Bool) };
             }
 
@@ -41,7 +39,7 @@ namespace loom
                 // Any two values can be compared for equality, so this one never faults.
                 context.setOutput("result", equals(context.input("left"), context.input("right")));
 
-                return FlowResult::continueOn("out");
+                return FlowResult::stop();
             }
         };
     }

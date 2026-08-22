@@ -21,6 +21,8 @@ namespace loom
             std::string displayName() const override { return "String"; }
             std::string category()    const override { return "Values"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
                 // A constant. With no flow pins it never runs, so the value the

@@ -18,7 +18,7 @@
 namespace
 {
     const char* kStory = R"({
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "meta": { "title": "Gate Test", "author": "KingBob" },
   "entry": "gate",
   "variables": { "gold": { "type": "int", "value": 0 } },
@@ -29,7 +29,8 @@ namespace
       "nodes": [
         { "id": 1,  "type": "sceneStart",   "position": { "x": 0.0,    "y": 0.0 } },
         { "id": 2,  "type": "showText",     "position": { "x": 240.0,  "y": 0.0 },
-          "pinValues": { "textIn": "The guard blocks the gate." } },
+          "extraPins": 1,
+          "pinValues": { "textIn": { "spans": [ { "text": "The guard blocks the gate." } ] } } },
         { "id": 3,  "type": "setVariable",  "position": { "x": 480.0,  "y": 0.0 },
           "pinValues": { "name": "gold" } },
         { "id": 4,  "type": "integerValue", "position": { "x": 480.0,  "y": 200.0 },
@@ -44,24 +45,22 @@ namespace
           "extraPins": 2,
           "pinValues": { "option0": "Bribe the guard", "option1": "Walk away" } },
         { "id": 10, "type": "showText",     "position": { "x": 1680.0, "y": -120.0 },
-          "pinValues": { "textIn": "You bribe your way through." } },
+          "extraPins": 1,
+          "pinValues": { "textIn": { "spans": [ { "text": "You bribe your way through." } ] } } },
         { "id": 11, "type": "showText",     "position": { "x": 1680.0, "y": 120.0 },
-          "pinValues": { "textIn": "You turn back." } },
+          "extraPins": 1,
+          "pinValues": { "textIn": { "spans": [ { "text": "You turn back." } ] } } },
         { "id": 12, "type": "showText",     "position": { "x": 1440.0, "y": 320.0 },
-          "pinValues": { "textIn": "You have too little gold." } },
-        { "id": 13, "type": "showText",     "position": { "x": 960.0,  "y": 440.0 },
-          "pinValues": { "textIn": "You have no money at all." } }
+          "extraPins": 1,
+          "pinValues": { "textIn": { "spans": [ { "text": "You have too little gold." } ] } } }
       ],
       "connections": [
         { "from": 1, "fromPin": "out",      "to": 2,  "toPin": "in" },
         { "from": 2, "fromPin": "out",      "to": 3,  "toPin": "in" },
         { "from": 4, "fromPin": "value",    "to": 3,  "toPin": "value" },
-        { "from": 3, "fromPin": "out",      "to": 5,  "toPin": "in" },
-        { "from": 5, "fromPin": "out",      "to": 6,  "toPin": "in" },
-        { "from": 5, "fromPin": "notFound", "to": 13, "toPin": "in" },
+        { "from": 3, "fromPin": "out",      "to": 8,  "toPin": "in" },
         { "from": 5, "fromPin": "value",    "to": 6,  "toPin": "left" },
         { "from": 7, "fromPin": "value",    "to": 6,  "toPin": "right" },
-        { "from": 6, "fromPin": "out",      "to": 8,  "toPin": "in" },
         { "from": 6, "fromPin": "result",   "to": 8,  "toPin": "condition" },
         { "from": 8, "fromPin": "true",     "to": 9,  "toPin": "in" },
         { "from": 8, "fromPin": "false",    "to": 12, "toPin": "in" },
@@ -74,19 +73,29 @@ namespace
 
     struct RecordingHost : loom::Host
     {
-        void showText(const std::string& text, const loom::TextStyle&) override
+        void showText(const std::vector<loom::TextRun>& passage) override
         {
-            lines.push_back(text);
+            std::string words;
+
+            for (const loom::TextRun& run : passage) words += run.text;
+
+            lines.push_back(words);
         }
 
-        void askChoice(const std::vector<loom::Option>& options, const loom::TextStyle&) override
+        void askChoice(const std::vector<loom::Option>& options) override
         {
             offered.clear();
             for (const loom::Option& option : options) offered.push_back(option.text);
         }
 
+        void command(const std::string& name, const loom::Value&) override
+        {
+            if (name == "error") ++faults;
+        }
+
         std::vector<std::string> lines;
         std::vector<std::string> offered;
+        int                      faults = 0;
     };
 
     loom::NodeCatalog builtins()
@@ -182,7 +191,7 @@ TEST_CASE("changing one value in the file changes the story", "[story]")
     REQUIRE(host.lines.back() == "You have too little gold.");
 }
 
-TEST_CASE("a variable that was never written takes the second route", "[story]")
+TEST_CASE("naming a variable the story does not declare is a fault", "[story]")
 {
     const loom::NodeCatalog catalog = builtins();
 
@@ -195,8 +204,12 @@ TEST_CASE("a variable that was never written takes the second route", "[story]")
     loom::Interpreter interpreter(project, catalog, host);
     interpreter.start();
 
+    // The variable is picked from a list of the declared ones, so the only way
+    // to reach this is to delete one a node still names. Two faults follow: the
+    // read that found nothing, and the comparison that cannot order nothing
+    // against a number. Both are reported and the story still reaches its end.
+    REQUIRE(host.faults == 2);
     REQUIRE(interpreter.finished());
-    REQUIRE(host.lines.back() == "You have no money at all.");
 }
 
 TEST_CASE("a story saved at the choice restores to the same choice", "[story][save]")

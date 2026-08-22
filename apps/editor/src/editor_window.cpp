@@ -1,6 +1,7 @@
 #include "editor_window.h"
 
 #include <QAction>
+#include <QTimer>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDockWidget>
@@ -12,6 +13,7 @@
 #include <QRegularExpression>
 #include <QKeySequence>
 #include <QListWidget>
+#include <QTabBar>
 #include <QMenuBar>
 #include <QAbstractItemView>
 #include <QFont>
@@ -23,6 +25,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPolygonF>
+#include <QProxyStyle>
 #include <QStyle>
 #include <QToolBar>
 #include <QListView>
@@ -30,13 +33,17 @@
 
 #include <QtNodes/internal/NodeGraphicsObject.hpp>
 
+#include "connection_painter.h"
 #include "details_panel.h"
 #include "graph_document.h"
 #include "graph_model.h"
 #include "graph_scene.h"
 #include "graph_view.h"
+#include "inline_edit.h"
 #include "node_adaptor.h"
 #include "node_geometry.h"
+#include "node_painter.h"
+#include "node_palette.h"
 #include "playtest_panel.h"
 #include "value_tree.h"
 
@@ -48,6 +55,61 @@
 
 namespace
 {
+    // Tabs sit against one another by default, which reads as one long bar
+    // rather than as a scene each. A background of their own is what makes
+    // them separate, and the margin is the gap between them.
+    // A tab bar slides a tab into its new place, but writes the label straight
+    // at where it is going, so the name arrives before the box it belongs to.
+    // Painting the tabs by hand would be the way to make the two travel
+    // together; taking the slide away costs a dozen lines and no one is left
+    // behind either.
+    class InstantTabs : public QProxyStyle
+    {
+    public:
+        int styleHint(StyleHint hint, const QStyleOption* option, const QWidget* widget,
+                      QStyleHintReturn* data) const override
+        {
+            if (hint == SH_Widget_Animation_Duration) return 0;
+
+            return QProxyStyle::styleHint(hint, option, widget, data);
+        }
+    };
+
+    // The gap the style sheet leaves after each tab. tabRect() counts it as
+    // part of the tab, so the rename box has to give it back.
+    // The narrowest the left column is worth being: both panels in it read
+    // as prose.
+    constexpr int kLeastSideWidth = 320;
+
+    constexpr int kSceneTabGap = 10;
+
+    QString sceneStripStyle()
+    {
+        return QString("QTabBar { border: none; }"
+                       "QTabBar::tab {"
+                       "  background: #3a3a3f;"
+                       "  color: #d0d0d0;"
+                       "  border: 1px solid #4e4e54;"
+                       "  border-radius: 5px;"
+                       "  padding: 11px 22px;"
+                       "  margin-right: %1px;"
+                       "  min-width: 56px;"
+                       "}"
+                       "QTabBar::tab:selected {"
+                       "  background: #3d4a5a; border-color: #8aa0bb; color: #ffffff;"
+                       "}"
+                       "QTabBar::tab:!selected:hover { background: #46464c; }").arg(kSceneTabGap);
+    }
+
+    // Tall enough for a tab, whether or not there is one in it yet.
+    constexpr int kSceneRowHeight = 44;
+
+    // How far the rename box sits inside the tab it is typed on.
+    constexpr int kSceneBoxInset = 6;
+
+    // The scene the story begins in.
+    const QColor kEntryScene(0xd8, 0xbc, 0x6a);
+
     // Long enough for windeployqt to walk a fresh binary, short enough that a
     // tool which never returns does not hold the editor for ever.
     constexpr int kDeployTimeout = 120000;
@@ -91,15 +153,19 @@ namespace
 
         if (fromHere)
         {
+            // A card, because that is what the author is pointing at, in the
+            // colour the canvas rings the node they have picked out with.
+            const QRectF badge(10.0, 12.0, 13.0, 10.0);
+
             // Punched out of the triangle first, so the badge keeps its edge
             // wherever the two overlap.
             painter.setBrush(Qt::transparent);
             painter.setCompositionMode(QPainter::CompositionMode_Clear);
-            painter.drawEllipse(QPointF(17.0, 17.0), 7.0, 7.0);
+            painter.drawRoundedRect(badge.adjusted(-1.5, -1.5, 1.5, 1.5), 3.5, 3.5);
 
             painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-            painter.setBrush(QColor(240, 173, 78));
-            painter.drawEllipse(QPointF(17.0, 17.0), 5.5, 5.5);
+            painter.setBrush(palette::border(true));
+            painter.drawRoundedRect(badge, 2.5, 2.5);
         }
 
         painter.end();
@@ -121,6 +187,15 @@ EditorWindow::EditorWindow()
     buildDocks();
 
     newStory();
+
+    // Shown, then handed the keyboard on the next turn of the event loop. The
+    // canvas embeds real widgets in the scene, and one of those coming up can
+    // take the focus off the window that owns it.
+    QTimer::singleShot(0, this, [this]
+    {
+        raise();
+        activateWindow();
+    });
 }
 
 EditorWindow::~EditorWindow()
@@ -131,11 +206,13 @@ EditorWindow::~EditorWindow()
 
 void EditorWindow::buildCanvas()
 {
-    registry = makeRegistry(catalog, variableSpecs);
+    registry = makeRegistry(catalog, variableSpecs, [this] { return model.get(); });
     model    = std::make_unique<GraphModel>(registry);
 
     scene = new GraphScene(*model, catalog, this);
     scene->setNodeGeometry(std::make_unique<NodeGeometry>(*model));
+    scene->setNodePainter(std::make_unique<NodePainter>(faults));
+    scene->setConnectionPainter(std::make_unique<ConnectionPainter>(faults));
 
     view = new GraphView(scene, catalog, this);
 
@@ -181,6 +258,40 @@ void EditorWindow::buildMenus()
 
     edit->addAction(undo);
     edit->addAction(redo);
+
+    edit->addSeparator();
+
+    // The canvas keeps these, because it is the canvas that has a selection
+    // and a place to paste into. QtNodes hangs its own copies on the view, on
+    // the same keys, and those are taken off there so the keys are not claimed
+    // twice: a key claimed twice is one Qt answers by doing nothing.
+    const auto onCanvas = [this](QAction* action, QKeySequence key)
+    {
+        // Scoped to the canvas rather than to the window, so that Ctrl+C in a
+        // panel on the side still copies the text the author selected there.
+        action->setShortcut(key);
+        action->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+
+        view->addAction(action);
+    };
+
+    onCanvas(edit->addAction("Cu&t", view, &GraphView::onCutSelectedObjects),
+             QKeySequence::Cut);
+    onCanvas(edit->addAction("&Copy", view, &GraphView::onCopySelectedObjects),
+             QKeySequence::Copy);
+    onCanvas(edit->addAction("&Paste", view, &GraphView::onPasteObjects),
+             QKeySequence::Paste);
+    onCanvas(edit->addAction("&Duplicate", view, &GraphView::onDuplicateSelectedObjects),
+             QKeySequence(Qt::CTRL | Qt::Key_D));
+
+    edit->addSeparator();
+
+    // No shortcut of its own: Backspace is read by the canvas, which knows
+    // whether a pin is being typed into and has to keep its own key.
+    edit->addAction("De&lete", view, &GraphView::onDeleteSelectedObjects);
+
+    // Filled in by buildDocks, which is where the panels are made.
+    panelMenu = menuBar()->addMenu("&View");
 
     QMenu* debug = menuBar()->addMenu("&Debug");
 
@@ -232,47 +343,74 @@ QWidget* EditorWindow::buildConsole()
 
 QWidget* EditorWindow::buildScenes()
 {
-    scenes = new QListWidget;
-    scenes->setFlow(QListView::LeftToRight);
-    scenes->setWrapping(false);
-    scenes->setFixedHeight(34);
-    scenes->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scenes->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+    scenes = new QTabBar;
+    scenes->setDrawBase(false);
+    scenes->setElideMode(Qt::ElideNone);
+    scenes->setStyleSheet(sceneStripStyle());
+
+    InstantTabs* instant = new InstantTabs;
+    instant->setParent(scenes);
+
+    scenes->setStyle(instant);
     scenes->setContextMenuPolicy(Qt::CustomContextMenu);
 
-    connect(scenes, &QListWidget::currentRowChanged, this, &EditorWindow::switchScene);
-    connect(scenes, &QListWidget::itemChanged, this, &EditorWindow::renameScene);
+    // Without this a lone scene is stretched across the whole bar.
+    scenes->setExpanding(false);
 
-    connect(scenes, &QListWidget::customContextMenuRequested, this, [this](const QPoint& at)
+    // A story with one scene still has to show it. The bar is laid out before
+    // the first scene is put in it, and an empty one asks for no height at
+    // all: it would be given none, and the tab added afterwards would be
+    // drawn inside nothing.
+    scenes->setAutoHide(false);
+    scenes->setMinimumHeight(kSceneRowHeight);
+
+    // Dragged into whatever order the author likes to read them in.
+    scenes->setMovable(true);
+
+    connect(scenes, &QTabBar::currentChanged, this, &EditorWindow::switchScene);
+    connect(scenes, &QTabBar::tabBarDoubleClicked, this, &EditorWindow::renameScene);
+    connect(scenes, &QTabBar::tabMoved, this, &EditorWindow::reorderScenes);
+
+    connect(scenes, &QTabBar::customContextMenuRequested, this, [this](const QPoint& at)
     {
-        QListWidgetItem* item = scenes->itemAt(at);
-        if (item == nullptr) return;
+        const int tab = scenes->tabAt(at);
+        if (tab < 0) return;
 
         QMenu menu;
         QAction* start = menu.addAction("Start Here");
+        QAction* drop = menu.addAction("Delete Scene");
 
-        if (menu.exec(scenes->mapToGlobal(at)) != start) return;
+        drop->setEnabled(project.graphs.size() > 1);
 
-        project.entry = project.graphs[scenes->row(item)].name;
+        const QAction* chosen = menu.exec(scenes->mapToGlobal(at));
+        if (chosen == nullptr) return;
+
+        scenes->setCurrentIndex(tab);
+
+        if (chosen == drop)
+        {
+            removeScene();
+            return;
+        }
+
+        project.entry = project.graphs[static_cast<std::size_t>(tab)].name;
         refreshScenes();
     });
 
+    // Only the one button: a scene is made often and deleted once in a while,
+    // so deleting lives in the menu on the scene itself, as a variable does.
     QPushButton* add = new QPushButton("+");
-    QPushButton* remove = new QPushButton("-");
-
-    add->setFixedWidth(28);
-    remove->setFixedWidth(28);
+    add->setFixedSize(34, 34);
+    add->setToolTip("New scene");
 
     connect(add, &QPushButton::clicked, this, &EditorWindow::addScene);
-    connect(remove, &QPushButton::clicked, this, &EditorWindow::removeScene);
 
     QWidget* strip = new QWidget;
 
     QHBoxLayout* row = new QHBoxLayout(strip);
-    row->setContentsMargins(4, 4, 4, 4);
-    row->setSpacing(4);
+    row->setContentsMargins(10, 18, 10, 18);
+    row->setSpacing(10);
     row->addWidget(add);
-    row->addWidget(remove);
     row->addWidget(scenes, 1);
 
     return strip;
@@ -286,12 +424,16 @@ QWidget* EditorWindow::buildPanel()
     details = new DetailsPanel;
     values  = new ValueTree;
 
+    // Off the panel until a node asks for it, and parented so that it is never
+    // a widget without one, which in Qt means a window.
+    details->setParent(panel);
+    details->hide();
+
     connect(values, &ValueTree::changed, this, &EditorWindow::syncVariableNames);
     connect(values, &ValueTree::renamed, this, &EditorWindow::renameVariable);
     connect(values, &ValueTree::removed, this, &EditorWindow::reportVariableUses);
 
-    panel->addTab(values, "Variables");
-    panel->addTab(details, "Details");
+    panel->addTab(values, "Global Variables");
 
     return panel;
 }
@@ -442,7 +584,19 @@ void EditorWindow::buildDocks()
     addDockWidget(Qt::RightDockWidgetArea, inspector);
 
     resizeDocks({ playtestDock, output }, { 420, 300 }, Qt::Vertical);
-    resizeDocks({ playtestDock, output, inspector }, { 320, 320, 300 }, Qt::Horizontal);
+    // The playtest text and the console both read as prose, so neither is
+    // worth having narrower than a column of it.
+    playtestDock->setMinimumWidth(kLeastSideWidth);
+    output->setMinimumWidth(kLeastSideWidth);
+
+    resizeDocks({ playtestDock, output, inspector }, { kLeastSideWidth, kLeastSideWidth, 300 },
+                Qt::Horizontal);
+
+    // Closing a dock hides it, and these are the only way to ask for it back.
+    panelMenu->addAction(playtestDock->toggleViewAction());
+    panelMenu->addAction(output->toggleViewAction());
+    panelMenu->addAction(inspector->toggleViewAction());
+    panelMenu->addAction(strip->toggleViewAction());
 
     connect(scene, &QGraphicsScene::selectionChanged, this, &EditorWindow::syncDetails);
 
@@ -472,30 +626,51 @@ void EditorWindow::syncDetails()
 
     details->setNode(only);
 
-    if (only != nullptr) panel->setCurrentWidget(details);
+    showDetails(only != nullptr);
+}
+
+void EditorWindow::showDetails(bool on)
+{
+    const int at = panel->indexOf(details);
+
+    if (on)
+    {
+        if (at < 0) panel->addTab(details, "Node Details");
+
+        panel->setCurrentWidget(details);
+        return;
+    }
+
+    if (at < 0) return;
+
+    panel->removeTab(at);
+
+    // removeTab hands the page back with no parent at all, and for that one
+    // moment it is a top level window flashing over the canvas.
+    details->setParent(panel);
+    details->hide();
 }
 
 void EditorWindow::refreshScenes()
 {
+    closeSceneBox();
+
     rebuilding = true;
 
-    scenes->clear();
+    while (scenes->count() > 0) scenes->removeTab(0);
 
     for (const loom::Graph& graph : project.graphs)
     {
-        QListWidgetItem* item = new QListWidgetItem(QString::fromStdString(graph.name), scenes);
-        item->setFlags(item->flags() | Qt::ItemIsEditable);
+        const int tab = scenes->addTab(QString::fromStdString(graph.name));
 
-        if (graph.name == project.entry)
-        {
-            QFont bold = item->font();
-            bold.setBold(true);
+        // Where the story begins. A tab bar has one font for all of its tabs,
+        // so the entry is marked in colour rather than in weight.
+        if (graph.name == project.entry) scenes->setTabTextColor(tab, kEntryScene);
 
-            item->setFont(bold);
-        }
+        scenes->setTabToolTip(tab, "Double click to rename");
     }
 
-    scenes->setCurrentRow(static_cast<int>(editing));
+    scenes->setCurrentIndex(static_cast<int>(editing));
 
     rebuilding = false;
 }
@@ -510,6 +685,23 @@ void EditorWindow::showScene(const loom::Graph& graph)
     view->setUpdatesEnabled(true);
 
     scene->undoStack().clear();
+
+    // Where a scene begins is where the author wants to be looking. Left to
+    // itself the view settles on the middle of the rectangle the nodes span,
+    // which moves whenever a node changes size.
+    for (QtNodes::NodeId node : model->allNodeIds())
+    {
+        const NodeAdaptor* adaptor = adaptorFor(*model, node);
+
+        if (adaptor == nullptr || !adaptor->nodeType().isEntryPoint()) continue;
+
+        if (QtNodes::NodeGraphicsObject* drawn = scene->nodeGraphicsObject(node))
+        {
+            view->centerOn(drawn);
+        }
+
+        break;
+    }
 
     syncDetails();
 }
@@ -526,7 +718,38 @@ void EditorWindow::switchScene(int index)
 
     editing = wanted;
 
+    // The marks name node ids in the scene that raised them, and ids only mean
+    // something inside one scene.
+    faults.clear();
+
     showScene(project.graphs[editing]);
+}
+
+void EditorWindow::reorderScenes(int from, int to)
+{
+    closeSceneBox();
+
+    const std::size_t count = project.graphs.size();
+
+    if (rebuilding || from < 0 || to < 0) return;
+    if (std::size_t(from) >= count || std::size_t(to) >= count) return;
+
+    // The tab bar has already moved the tab; this brings the story in line
+    // with it. Nothing but the reading order changes.
+    const loom::Graph carried = project.graphs[std::size_t(from)];
+
+    project.graphs.erase(project.graphs.begin() + from);
+    project.graphs.insert(project.graphs.begin() + to, carried);
+
+    if (std::size_t(from) == editing)                        editing = std::size_t(to);
+    else if (std::size_t(from) < editing && std::size_t(to) >= editing) --editing;
+    else if (std::size_t(from) > editing && std::size_t(to) <= editing) ++editing;
+
+    // Guarded, or the index landing back on the scene already open would be
+    // read as a request to open it again.
+    rebuilding = true;
+    scenes->setCurrentIndex(static_cast<int>(editing));
+    rebuilding = false;
 }
 
 void EditorWindow::addScene()
@@ -575,18 +798,68 @@ void EditorWindow::removeScene()
     reportSceneReferences(gone);
 }
 
-void EditorWindow::renameScene(QListWidgetItem* item)
+void EditorWindow::renameScene(int tab)
 {
-    if (rebuilding || item == nullptr) return;
+    if (rebuilding || tab < 0) return;
 
-    const std::size_t index = static_cast<std::size_t>(scenes->row(item));
+    const std::size_t index = static_cast<std::size_t>(tab);
 
     if (index >= project.graphs.size()) return;
 
     const std::string was = project.graphs[index].name;
-    const std::string typed = item->text().toStdString();
 
-    if (typed == was) return;
+    // Typed on the tab itself rather than in a dialog. The tab's own label
+    // comes off while the box is up, or the two names sit on one another.
+    scenes->setTabText(tab, QString());
+
+    InlineEdit* box = new InlineEdit(QString::fromStdString(was),
+                                     [this, was](const QString& typed)
+                                     {
+                                         takeSceneName(was, typed.toStdString());
+                                     },
+                                     scenes);
+
+    connect(box, &InlineEdit::finished, box, &QObject::deleteLater);
+
+    const QRect over = scenes->tabRect(tab).adjusted(kSceneBoxInset, kSceneBoxInset,
+                                                     -(kSceneBoxInset + kSceneTabGap),
+                                                     -kSceneBoxInset);
+
+    // Fixed rather than set: a line edit asks for a width of its own, and a
+    // plain setGeometry is answered with that one instead.
+    box->setFixedSize(over.size());
+    box->move(over.topLeft());
+
+    box->show();
+    box->setFocus();
+    box->selectAll();
+
+    sceneBox = box;
+}
+
+void EditorWindow::closeSceneBox()
+{
+    // A tab bar takes no focus from a click, so dragging the tabs about leaves
+    // the box sitting over whichever tab has arrived underneath it.
+    if (!sceneBox.isNull()) sceneBox->clearFocus();
+}
+
+void EditorWindow::takeSceneName(const std::string& was, const std::string& typed)
+{
+    std::size_t index = project.graphs.size();
+
+    for (std::size_t at = 0; at < project.graphs.size(); ++at)
+    {
+        if (project.graphs[at].name == was) index = at;
+    }
+
+    // Either way the tabs are rebuilt, which is what puts back the label that
+    // was taken off while the box was up.
+    if (index == project.graphs.size() || typed.empty() || typed == was)
+    {
+        refreshScenes();
+        return;
+    }
 
     const std::string now = uniqueSceneName(typed);
 
@@ -710,7 +983,7 @@ bool EditorWindow::focusNode(const std::string& graph, loom::NodeId node)
             return false;
         }
 
-        scenes->setCurrentRow(static_cast<int>(index));
+        scenes->setCurrentIndex(static_cast<int>(index));
     }
 
     QtNodes::NodeGraphicsObject* object =
@@ -732,9 +1005,18 @@ bool EditorWindow::focusNode(const std::string& graph, loom::NodeId node)
 
 void EditorWindow::report(const loom::Diagnostics& diagnostics)
 {
+    faults.clear();
+
     for (const loom::Diagnostic& entry : diagnostics.all())
     {
         const bool fault = entry.severity == loom::Severity::Error;
+
+        // Only the scene on screen can be coloured, and only errors are worth
+        // colouring: a warning is a story that is merely unfinished.
+        if (fault && entry.graph == project.graphs[editing].name)
+        {
+            faults.add(entry.node, entry.pin);
+        }
 
         QString line = fault ? "Error" : "Warning";
 
@@ -746,6 +1028,8 @@ void EditorWindow::report(const loom::Diagnostics& diagnostics)
         if (entry.node == 0) log(line, fault);
         else                 logAt(line, entry.graph, entry.node, fault);
     }
+
+    scene->update();
 }
 
 void EditorWindow::newStory()

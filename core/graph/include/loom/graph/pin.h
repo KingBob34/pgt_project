@@ -19,6 +19,10 @@ namespace loom
         inline constexpr const char* Color  = "color";
         inline constexpr const char* List   = "list";
 
+        // A passage the author wrote: styled runs of text, and slots standing
+        // for the node value pins. Written only in the editor, never wired.
+        inline constexpr const char* Prose  = "prose";
+
         // Names one of the story's declared globals. Chosen from a list of
         // them, never computed, so no wire may reach it.
         inline constexpr const char* VariableName = "variableName";
@@ -48,6 +52,10 @@ namespace loom
         // Names the variableName pin whose choice decides this pin's type.
         // Empty on every pin whose type is fixed.
         std::string typeFollows;
+
+        // The editor keeps this value but shows no row and no connector for
+        // it: it is the shape of the node, not something the story reads.
+        bool hidden = false;
     };
 
     // Whether a wire may join a pin of type 'from' to a pin of type 'to'.

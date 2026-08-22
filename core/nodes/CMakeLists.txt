@@ -5,6 +5,7 @@ add_library(loom_nodes STATIC
         src/scene_start_node.cpp
         src/branch_node.cpp
         src/go_to_scene_node.cpp
+        src/end_node.cpp
 
         src/show_text_node.cpp
         src/show_choices_node.cpp
@@ -16,7 +17,6 @@ add_library(loom_nodes STATIC
         src/integer_value_node.cpp
         src/float_value_node.cpp
         src/bool_value_node.cpp
-        src/color_value_node.cpp
 
         src/random_integer_node.cpp
         src/equal_node.cpp
@@ -34,6 +34,7 @@ add_library(loom_nodes STATIC
 
         src/add_node.cpp
         src/subtract_node.cpp
+        src/divide_node.cpp
         src/multiply_node.cpp
         src/and_node.cpp
         src/or_node.cpp

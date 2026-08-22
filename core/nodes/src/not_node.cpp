@@ -6,11 +6,9 @@
 //  Turns true into false and false into true.
 //
 //  Inputs
-//      in            Flow
 //      value         Bool
 //
 //  Outputs
-//      out           Flow
 //      result        Bool
 //==============================================================================
 
@@ -25,11 +23,11 @@ namespace loom
             std::string displayName() const override { return "Not"; }
             std::string category()    const override { return "Logic"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("value", "Value", PinType::Bool, Value(false)),
-                         flowOut(),
+                return { dataIn("value", "Value", PinType::Bool, Value(false)),
                          dataOut("result", "Result", PinType::Bool) };
             }
 
@@ -37,7 +35,7 @@ namespace loom
             {
                 context.setOutput("result", !context.inputBool("value"));
 
-                return FlowResult::continueOn("out");
+                return FlowResult::stop();
             }
         };
     }

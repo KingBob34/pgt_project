@@ -19,6 +19,8 @@ FetchContent_MakeAvailable(QtNodes)
 add_executable(LoomEngine WIN32
         src/main.cpp
         src/editor_window.cpp
+        src/inline_edit.cpp
+        src/move_command.cpp
         src/node_adaptor.cpp
         src/graph_model.cpp
         src/graph_scene.cpp
@@ -30,6 +32,10 @@ add_executable(LoomEngine WIN32
         src/details_panel.cpp
         src/value_tree.cpp
         src/playtest_panel.cpp
+        src/node_painter.cpp
+        src/connection_painter.cpp
+        src/node_palette.cpp
+        src/prose_editor.cpp
 )
 
 # The tool that copies Qt's own libraries next to an exported game. Found

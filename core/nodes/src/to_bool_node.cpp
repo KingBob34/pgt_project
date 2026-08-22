@@ -7,11 +7,9 @@
 //  "true" or "false".
 //
 //  Inputs
-//      in            Flow
 //      value         Any
 //
 //  Outputs
-//      out           Flow
 //      result        Bool
 //==============================================================================
 
@@ -26,11 +24,11 @@ namespace loom
             std::string displayName() const override { return "To Bool"; }
             std::string category()    const override { return "Conversion"; }
 
+            bool isPure() const override { return true; }
+
             std::vector<PinSpec> pins(int) const override
             {
-                return { flowIn(),
-                         dataIn("value", "Value", PinType::Any),
-                         flowOut(),
+                return { dataIn("value", "Value", PinType::Any),
                          dataOut("result", "Result", PinType::Bool) };
             }
 
@@ -41,19 +39,19 @@ namespace loom
                 if (isBool(given))
                 {
                     context.setOutput("result", asBool(given));
-                    return FlowResult::continueOn("out");
+                    return FlowResult::stop();
                 }
 
                 if (isInt(given))
                 {
                     context.setOutput("result", asInt(given) != 0);
-                    return FlowResult::continueOn("out");
+                    return FlowResult::stop();
                 }
 
                 if (isFloat(given))
                 {
                     context.setOutput("result", asFloat(given) != 0.0);
-                    return FlowResult::continueOn("out");
+                    return FlowResult::stop();
                 }
 
                 if (isString(given))
@@ -63,10 +61,12 @@ namespace loom
                     if (text == "true" || text == "false")
                     {
                         context.setOutput("result", text == "true");
-                        return FlowResult::continueOn("out");
+                        return FlowResult::stop();
                     }
 
                     reportError(context, "To Bool", "'" + text + "' is neither true nor false");
+
+                    context.setOutput("result", false);
 
                     return FlowResult::stop();
                 }
@@ -74,6 +74,8 @@ namespace loom
                 reportError(context, "To Bool",
                             "cannot read a " + pinTypeLabel(typeName(given)) +
                             " as true or false");
+
+                context.setOutput("result", false);
 
                 return FlowResult::stop();
             }

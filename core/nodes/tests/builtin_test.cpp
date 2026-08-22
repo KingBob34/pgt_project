@@ -5,6 +5,7 @@
 
 #include "loom/nodes/builtin.h"
 
+#include "loom/graph/prose.h"
 #include "loom/graph/validate.h"
 #include "loom/value/inspect.h"
 
@@ -32,7 +33,7 @@ TEST_CASE("every builtin node type is registered once", "[nodes][builtin]")
 {
     // add() keys on name(), so a duplicated name would silently shrink the
     // catalog and nothing else would notice. Raise this when a node is added.
-    const std::size_t expected = 36;
+    const std::size_t expected = 37;
 
     const loom::NodeCatalog catalog = builtins();
 
@@ -56,6 +57,32 @@ TEST_CASE("exactly one builtin node type is an entry point", "[nodes][builtin]")
 
     REQUIRE(entryPoints == 1);
     REQUIRE(catalog.find("sceneStart")->isEntryPoint());
+}
+
+TEST_CASE("a node's purity and its flow pins agree", "[nodes][builtin]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    // Purity is declared, and no flow pins is what that declaration looks like.
+    // Reading it the other way round would call a node that merely forgot its
+    // flow pins a pure one.
+    for (const loom::NodeType* type : catalog.all())
+    {
+        INFO("node type: " << type->name());
+
+        int flowPins = 0;
+
+        for (const loom::PinSpec& pin : type->pins(type->minExtraPins()))
+        {
+            if (pin.type == loom::PinType::Flow) ++flowPins;
+        }
+
+        // A frame is neither: the story never reaches it at all.
+        if (type->isFrame()) continue;
+
+        if (type->isPure()) REQUIRE(flowPins == 0);
+        else                REQUIRE(flowPins > 0);
+    }
 }
 
 TEST_CASE("every node declares a display name, a category and unique pin names",
@@ -141,7 +168,8 @@ TEST_CASE("a graph built from real node types validates cleanly", "[nodes][built
     loom::NodeInstance text;
     text.id = 2;
     text.type = "showText";
-    text.pinValues["textIn"] = "the gate is shut";
+    text.extraPins = 1;
+    text.pinValues["textIn"] = loom::prose::fromPlain("the gate is shut");
 
     loom::NodeInstance start;
     start.id = 1;
@@ -155,8 +183,7 @@ TEST_CASE("a graph built from real node types validates cleanly", "[nodes][built
     graph.name = "gate";
     graph.nodes = { start, text, print };
     graph.connections = { { 1, "out", 2, "in" },
-                          { 2, "out", 3, "in" },
-                          { 2, "textOut", 3, "value" } };
+                          { 2, "out", 3, "in" } };
 
     loom::Diagnostics diagnostics;
     loom::validate(graph, catalog, diagnostics);

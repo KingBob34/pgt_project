@@ -22,7 +22,10 @@ namespace loom
         // The chosen variable is stored as the text of its name, and a colour
         // as an object of channels.
         if (pinType == PinType::VariableName) return valueType == PinType::String;
+
+        // Both are held as objects: a colour of channels, a passage of spans.
         if (pinType == PinType::Color) return valueType == PinType::Any;
+        if (pinType == PinType::Prose) return valueType == PinType::Any;
 
         return isCompatible(valueType, pinType);
     }
@@ -37,6 +40,7 @@ namespace loom
         if (type == PinType::String) return "String";
         if (type == PinType::Color) return "Color";
         if (type == PinType::List) return "List";
+        if (type == PinType::Prose) return "Prose";
         if (type == PinType::VariableName) return "Variable";
         if (type == PinType::Unset) return "None";
 

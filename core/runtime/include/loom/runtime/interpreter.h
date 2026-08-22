@@ -1,6 +1,7 @@
 #ifndef LOOM_RUNTIME_INTERPRETER_H
 #define LOOM_RUNTIME_INTERPRETER_H
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -106,6 +107,10 @@ namespace loom
         std::map<PinRef, Value>      outputs;
         Pending                      pending;
         bool                         done = true;
+
+        // The pure nodes part way through being worked out, so that a value
+        // asked to help work itself out is caught rather than followed.
+        mutable std::set<NodeId>     working;
     };
 }
 

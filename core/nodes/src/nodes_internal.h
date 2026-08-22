@@ -19,15 +19,18 @@ namespace loom
     PinSpec labelTextIn(std::string name, std::string label, Value defaultValue = Value(""));
     PinSpec longTextIn (std::string name, std::string label, Value defaultValue = Value(""));
 
+    // A passage the author writes in the editor, styled and with slots.
+    PinSpec proseIn(std::string name, std::string label);
+
+    // Part of the shape of a resizable node. Kept in the file, never shown.
+    PinSpec sizeIn(std::string name, int start);
+
     // An input naming one of the story's declared globals.
     PinSpec variableIn(std::string name, std::string label);
 
     // Pins whose type is that of the variable chosen on the 'follows' pin.
     PinSpec followsIn (std::string name, std::string label, std::string follows);
     PinSpec followsOut(std::string name, std::string label, std::string follows);
-
-    // Opaque white: the starting colour of every style pin.
-    Value defaultColor();
 
     // Reports a fault to the front end. The engine never repairs what the
     // author wrote, so every fault it can detect leaves through here.
@@ -37,6 +40,7 @@ namespace loom
     std::unique_ptr<NodeType> makeSceneStartNode();
     std::unique_ptr<NodeType> makeBranchNode();
     std::unique_ptr<NodeType> makeGoToSceneNode();
+    std::unique_ptr<NodeType> makeEndNode();
 
     std::unique_ptr<NodeType> makeShowTextNode();
     std::unique_ptr<NodeType> makeShowChoicesNode();
@@ -48,7 +52,6 @@ namespace loom
     std::unique_ptr<NodeType> makeIntegerValueNode();
     std::unique_ptr<NodeType> makeFloatValueNode();
     std::unique_ptr<NodeType> makeBoolValueNode();
-    std::unique_ptr<NodeType> makeColorValueNode();
 
     std::unique_ptr<NodeType> makeRandomIntegerNode();
     std::unique_ptr<NodeType> makeEqualNode();
@@ -66,6 +69,7 @@ namespace loom
     std::unique_ptr<NodeType> makeAddNode();
     std::unique_ptr<NodeType> makeSubtractNode();
     std::unique_ptr<NodeType> makeMultiplyNode();
+    std::unique_ptr<NodeType> makeDivideNode();
     std::unique_ptr<NodeType> makeAndNode();
     std::unique_ptr<NodeType> makeOrNode();
     std::unique_ptr<NodeType> makeNotNode();

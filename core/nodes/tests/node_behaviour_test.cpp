@@ -7,19 +7,24 @@
 
 #include "loom/nodes/builtin.h"
 
+#include "loom/graph/prose.h"
 #include "loom/value/inspect.h"
 
 namespace
 {
     struct RecordingHost : loom::Host
     {
-        void showText(const std::string& text, const loom::TextStyle& style) override
+        void showText(const std::vector<loom::TextRun>& passage) override
         {
-            lines.push_back(text);
-            fontSizes.push_back(style.fontSize);
+            std::string words;
+
+            for (const loom::TextRun& run : passage) words += run.text;
+
+            lines.push_back(words);
+            runCounts.push_back(static_cast<int>(passage.size()));
         }
 
-        void askChoice(const std::vector<loom::Option>& options, const loom::TextStyle&) override
+        void askChoice(const std::vector<loom::Option>& options) override
         {
             offered.clear();
             locked.clear();
@@ -39,7 +44,7 @@ namespace
         struct Command { std::string name; loom::Value args; };
 
         std::vector<std::string> lines;
-        std::vector<long long>   fontSizes;
+        std::vector<int>         runCounts;
         std::vector<std::string> offered;
         std::vector<std::string> locked;
         std::vector<Command>     commands;
@@ -132,15 +137,35 @@ TEST_CASE("Show Text pushes the words out and hands them on as data", "[nodes][b
     const loom::NodeCatalog catalog = builtins();
 
     FakeContext context;
-    context.inputs["textIn"] = "the gate is shut";
-    context.inputs["fontSize"] = 22;
+    context.inputs["textIn"] = loom::prose::fromPlain("the gate is shut");
 
     const loom::FlowResult result = catalog.find("showText")->execute(context);
 
     REQUIRE(result.pin == "out");
     REQUIRE(context.recorder.lines == std::vector<std::string>{ "the gate is shut" });
-    REQUIRE(context.recorder.fontSizes == std::vector<long long>{ 22 });
-    REQUIRE(context.outputs.at("textOut") == "the gate is shut");
+}
+
+TEST_CASE("a slot in a passage reads the pin it stands for", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    loom::Value spans = loom::Value::array();
+    spans.push_back(loom::Value{ { "text", "you have " } });
+    spans.push_back(loom::Value{ { "slot", 0 } });
+    spans.push_back(loom::Value{ { "text", " coins" } });
+
+    FakeContext context;
+    context.inputs["textIn"] = loom::Value{ { "spans", spans } };
+
+    // Anything a pin can hold reaches the page as text, not only a string.
+    context.inputs["value0"] = 25;
+
+    catalog.find("showText")->execute(context);
+
+    REQUIRE(context.recorder.lines == std::vector<std::string>{ "you have 25 coins" });
+
+    // What the author styled apart stays apart on the way out.
+    REQUIRE(context.recorder.runCounts == std::vector<int>{ 3 });
 }
 
 TEST_CASE("Get Variable takes a second route when nothing is stored", "[nodes][behaviour]")
@@ -153,19 +178,21 @@ TEST_CASE("Get Variable takes a second route when nothing is stored", "[nodes][b
 
     SECTION("missing")
     {
-        const loom::FlowResult result = get->execute(context);
+        // Only reachable by deleting a declared variable a node still names,
+        // so it is a fault rather than a route the story can take.
+        get->execute(context);
 
-        REQUIRE(result.pin == "notFound");
-        REQUIRE(context.outputs.find("value") == context.outputs.end());
+        REQUIRE(reportedError(context.recorder));
+        REQUIRE(loom::isNull(context.outputs.at("value")));
     }
 
     SECTION("present")
     {
         context.variables["gold"] = 25;
-        const loom::FlowResult result = get->execute(context);
+        get->execute(context);
 
-        REQUIRE(result.pin == "out");
         REQUIRE(context.outputs.at("value") == 25);
+        REQUIRE_FALSE(reportedError(context.recorder));
     }
 }
 
@@ -222,6 +249,22 @@ TEST_CASE("Show Choices shows a locked option but does not let it be picked",
     REQUIRE(result.optionPins == std::vector<std::string>{ "chosen0", "chosen1" });
 }
 
+TEST_CASE("End stops the story and names the ending it reached", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    FakeContext context;
+    context.inputs["text"] = "The gate closes behind you.";
+
+    const loom::FlowResult result = catalog.find("end")->execute(context);
+
+    REQUIRE(result.kind == loom::FlowResult::Kind::Stop);
+    REQUIRE(context.recorder.commands.size() == 1);
+    REQUIRE(context.recorder.commands.front().name == "ending");
+    REQUIRE(loom::asString(*loom::objectGet(context.recorder.commands.front().args, "text")) ==
+            "The gate closes behind you.");
+}
+
 TEST_CASE("Go To Scene reports where to continue and never returns", "[nodes][behaviour]")
 {
     const loom::NodeCatalog catalog = builtins();
@@ -244,7 +287,7 @@ TEST_CASE("== compares any two values without faulting", "[nodes][behaviour]")
     context.inputs["left"] = "mage";
     context.inputs["right"] = 25;
 
-    REQUIRE(equal->execute(context).pin == "out");
+    equal->execute(context);
     REQUIRE(context.outputs.at("result") == false);
     REQUIRE_FALSE(reportedError(context.recorder));
 }
@@ -257,17 +300,17 @@ TEST_CASE("the ordering tests answer for numbers", "[nodes][behaviour]")
     context.inputs["left"] = 3;
     context.inputs["right"] = 25;
 
-    REQUIRE(catalog.find("less")->execute(context).pin == "out");
+    catalog.find("less")->execute(context);
     REQUIRE(context.outputs.at("result") == true);
 
-    REQUIRE(catalog.find("greater")->execute(context).pin == "out");
+    catalog.find("greater")->execute(context);
     REQUIRE(context.outputs.at("result") == false);
 
     context.inputs["right"] = 3;
-    REQUIRE(catalog.find("lessOrEqual")->execute(context).pin == "out");
+    catalog.find("lessOrEqual")->execute(context);
     REQUIRE(context.outputs.at("result") == true);
 
-    REQUIRE(catalog.find("greaterOrEqual")->execute(context).pin == "out");
+    catalog.find("greaterOrEqual")->execute(context);
     REQUIRE(context.outputs.at("result") == true);
 }
 
@@ -280,11 +323,10 @@ TEST_CASE("the ordering tests report and halt on things that have no order",
     context.inputs["left"] = "mage";
     context.inputs["right"] = 25;
 
-    const loom::FlowResult result = catalog.find("less")->execute(context);
+    catalog.find("less")->execute(context);
 
-    REQUIRE(result.kind == loom::FlowResult::Kind::Stop);
     REQUIRE(reportedError(context.recorder));
-    REQUIRE(context.outputs.find("result") == context.outputs.end());
+    REQUIRE(context.outputs.at("result") == false);
 }
 
 TEST_CASE("Random Integer stays inside its range", "[nodes][behaviour]")
@@ -328,13 +370,13 @@ TEST_CASE("the rounding nodes each choose a different whole number", "[nodes][be
     FakeContext context;
     context.inputs["value"] = 2.5;
 
-    REQUIRE(catalog.find("floor")->execute(context).pin == "out");
+    catalog.find("floor")->execute(context);
     REQUIRE(context.outputs.at("result") == 2);
 
-    REQUIRE(catalog.find("ceil")->execute(context).pin == "out");
+    catalog.find("ceil")->execute(context);
     REQUIRE(context.outputs.at("result") == 3);
 
-    REQUIRE(catalog.find("round")->execute(context).pin == "out");
+    catalog.find("round")->execute(context);
     REQUIRE(context.outputs.at("result") == 3);
 }
 
@@ -358,7 +400,7 @@ TEST_CASE("value nodes and Comment never run", "[nodes][behaviour]")
     FakeContext context;
 
     for (const std::string& type : { "stringValue", "integerValue", "floatValue",
-                                     "boolValue", "colorValue", "comment" })
+                                     "boolValue", "comment" })
     {
         INFO("node type: " << type);
         REQUIRE(catalog.find(type)->execute(context).kind == loom::FlowResult::Kind::Stop);
@@ -372,7 +414,7 @@ TEST_CASE("To Float widens a whole number", "[nodes][behaviour]")
     FakeContext context;
     context.inputs["value"] = 3;
 
-    REQUIRE(catalog.find("toFloat")->execute(context).pin == "out");
+    catalog.find("toFloat")->execute(context);
 
     // asFloat alone reads a whole number as zero, which is the trap here.
     REQUIRE(loom::isFloat(context.outputs["result"]));
@@ -387,7 +429,7 @@ TEST_CASE("To Float keeps a decimal and counts a Bool", "[nodes][behaviour]")
         FakeContext context;
         context.inputs["value"] = 2.5;
 
-        REQUIRE(catalog.find("toFloat")->execute(context).pin == "out");
+        catalog.find("toFloat")->execute(context);
         REQUIRE(loom::asFloat(context.outputs["result"]) == 2.5);
     }
 
@@ -395,20 +437,23 @@ TEST_CASE("To Float keeps a decimal and counts a Bool", "[nodes][behaviour]")
         FakeContext context;
         context.inputs["value"] = true;
 
-        REQUIRE(catalog.find("toFloat")->execute(context).pin == "out");
+        catalog.find("toFloat")->execute(context);
         REQUIRE(loom::asFloat(context.outputs["result"]) == 1.0);
     }
 }
 
-TEST_CASE("To Float stops on something that is not a number", "[nodes][behaviour]")
+TEST_CASE("To Float reports something that is not a number", "[nodes][behaviour]")
 {
     const loom::NodeCatalog catalog = builtins();
 
     FakeContext context;
     context.inputs["value"] = "twelve";
 
-    REQUIRE(catalog.find("toFloat")->execute(context).kind == loom::FlowResult::Kind::Stop);
+    catalog.find("toFloat")->execute(context);
+
+    // Pure, so there is no flow to halt: it says so and answers zero.
     REQUIRE(reportedError(context.recorder));
+    REQUIRE(loom::asFloat(context.outputs.at("result")) == 0.0);
 }
 
 TEST_CASE("To String renders every kind of value", "[nodes][behaviour]")
@@ -430,7 +475,7 @@ TEST_CASE("To String renders every kind of value", "[nodes][behaviour]")
         FakeContext context;
         context.inputs["value"] = entry.first;
 
-        REQUIRE(catalog.find("toString")->execute(context).pin == "out");
+        catalog.find("toString")->execute(context);
         REQUIRE(loom::asString(context.outputs["result"]) == entry.second);
     }
 }
@@ -453,18 +498,50 @@ TEST_CASE("To Bool counts a number and reads the two words", "[nodes][behaviour]
         FakeContext context;
         context.inputs["value"] = entry.first;
 
-        REQUIRE(catalog.find("toBool")->execute(context).pin == "out");
+        catalog.find("toBool")->execute(context);
         REQUIRE(loom::asBool(context.outputs["result"]) == entry.second);
     }
 }
 
-TEST_CASE("To Bool stops on text that says neither", "[nodes][behaviour]")
+TEST_CASE("To Bool reports text that says neither", "[nodes][behaviour]")
 {
     const loom::NodeCatalog catalog = builtins();
 
     FakeContext context;
     context.inputs["value"] = "maybe";
 
-    REQUIRE(catalog.find("toBool")->execute(context).kind == loom::FlowResult::Kind::Stop);
+    catalog.find("toBool")->execute(context);
+
     REQUIRE(reportedError(context.recorder));
+    REQUIRE(loom::asBool(context.outputs.at("result")) == false);
+}
+
+TEST_CASE("Divide keeps the fraction it was given", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    FakeContext context;
+    context.inputs["left"] = 7;
+    context.inputs["right"] = 2;
+
+    catalog.find("divide")->execute(context);
+
+    // Two whole numbers in, and the half is still there on the way out.
+    REQUIRE(loom::isFloat(context.outputs["result"]));
+    REQUIRE(loom::asFloat(context.outputs["result"]) == 3.5);
+}
+
+TEST_CASE("Divide reports a division by zero and answers zero", "[nodes][behaviour]")
+{
+    const loom::NodeCatalog catalog = builtins();
+
+    FakeContext context;
+    context.inputs["left"] = 5;
+    context.inputs["right"] = 0;
+
+    catalog.find("divide")->execute(context);
+
+    REQUIRE(context.recorder.commands.size() == 1);
+    REQUIRE(context.recorder.commands.front().name == "error");
+    REQUIRE(loom::asFloat(context.outputs["result"]) == 0.0);
 }

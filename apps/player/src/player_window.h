@@ -11,6 +11,7 @@
 #include "loom/graph/graph.h"
 #include "loom/runtime/interpreter.h"
 
+class QLabel;
 class QPushButton;
 class QTextEdit;
 class QTreeWidget;
@@ -32,8 +33,8 @@ public:
     // the only one sitting beside it.
     void openStoryBesideMe();
 
-    void showText(const std::string& text, const loom::TextStyle& style) override;
-    void askChoice(const std::vector<loom::Option>& options, const loom::TextStyle& style) override;
+    void showText(const std::vector<loom::TextRun>& runs) override;
+    void askChoice(const std::vector<loom::Option>& options) override;
     void command(const std::string& name, const loom::Value& args) override;
 
     // The panels are not in a layout, so they are resized with what they cover.
@@ -47,9 +48,14 @@ private:
     QWidget* buildSystemBar();
     void     buildStatus(QWidget* surface);
     void     buildSettings(QWidget* surface);
+    void     buildEnding(QWidget* surface);
 
     // Raises one panel over the darkened story, or puts it away again.
     void showOverlay(QWidget* overlay, bool on);
+
+    // The story reached an ending the author named.
+    void showEnding(const QString& text);
+    void restart();
 
     // Redraws the status panel from the running story.
     void refreshStatus();
@@ -75,6 +81,8 @@ private:
     QWidget*     systemBar = nullptr;
     QWidget*     statusOverlay = nullptr;
     QWidget*     settingsOverlay = nullptr;
+    QWidget*     endingOverlay = nullptr;
+    QLabel*      endingText = nullptr;
     QTreeWidget* status = nullptr;
 };
 
