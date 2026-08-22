@@ -87,7 +87,7 @@ namespace
         const QPointF loose = cgo.endPoint(wanted);
 
         double nearest = kSnapReach;
-        bool found = false;
+        bool   found = false;
 
         for (unsigned int port = 0; port < ports; ++port)
         {

@@ -166,8 +166,8 @@ namespace loom
         if (entryPoints == 0) out.error("the graph has no entry point", graph.name);
         if (entryPoints > 1) out.error("the graph has more than one entry point", graph.name);
 
-        std::set<std::string> arrived;
-        std::set<std::string> left;
+        std::set<std::string>      arrived;
+        std::set<std::string>      left;
         std::map<std::string, int> flowOutWires;
         std::map<std::string, int> dataInWires;
 
@@ -244,7 +244,11 @@ namespace loom
             const auto pins = pinsById.find(node.id);
             if (pins == pinsById.end()) continue;
 
+            // Two nodes sharing an id leave one set of pins under that id and
+            // the other node still standing here, so the type is looked up
+            // again rather than assumed to be the one those pins came from.
             const NodeType* type = catalog.find(node.type);
+            if (type == nullptr) continue;
 
             for (const PinSpec& pin : pins->second)
             {

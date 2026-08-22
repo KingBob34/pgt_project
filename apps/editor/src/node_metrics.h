@@ -49,9 +49,6 @@ namespace metrics
     inline constexpr int labelWidth = 220;
     inline constexpr int labelRows = 3;
 
-    inline constexpr int paragraphWidth = 240;
-    inline constexpr int paragraphRows = 4;
-
     // The passage box is the one an author spends the day in, so it is given
     // room that no other editor on a node gets. One row of it is the band of
     // styling buttons above the text.

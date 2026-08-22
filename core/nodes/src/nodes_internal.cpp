@@ -34,12 +34,6 @@ namespace loom
                  PinType::String, std::move(defaultValue), TextShape::Label };
     }
 
-    PinSpec longTextIn(std::string name, std::string label, Value defaultValue)
-    {
-        return { std::move(name), std::move(label), PinDirection::Input,
-                 PinType::String, std::move(defaultValue), TextShape::Passage };
-    }
-
     PinSpec variableIn(std::string name, std::string label)
     {
         return { std::move(name), std::move(label), PinDirection::Input,
@@ -68,19 +62,57 @@ namespace loom
 
     PinSpec proseIn(std::string name, std::string label)
     {
-        PinSpec pin = dataIn(std::move(name), std::move(label), PinType::Prose,
-                             prose::fromPlain(""));
-        pin.textShape = TextShape::Passage;
-
-        return pin;
+        return dataIn(std::move(name), std::move(label), PinType::Prose, prose::fromPlain(""));
     }
 
-    void reportError(ExecutionContext& context, const std::string& node, const std::string& detail)
+    void reportError(ExecutionContext& context, const NodeType& node, const std::string& detail)
     {
-        Value details = Value::object();
-        details["node"] = node;
-        details["detail"] = detail;
+        Value details = makeObject();
+        objectSet(details, "node", node.displayName());
+        objectSet(details, "detail", detail);
 
         context.host().command("error", details);
+    }
+
+    bool readListVariable(ExecutionContext& context, const NodeType& node,
+                          std::string& named, Value& held)
+    {
+        named = context.inputString("variable");
+
+        if (!context.readVariable(named, held))
+        {
+            reportError(context, node, "there is no variable called '" + named + "'");
+            return false;
+        }
+
+        if (!isList(held))
+        {
+            reportError(context, node, "'" + named + "' holds a " +
+                                       pinTypeLabel(typeName(held)) + ", not a list");
+            return false;
+        }
+
+        return true;
+    }
+
+    FlowResult orderedBy(ExecutionContext& context, const NodeType& node,
+                         const std::function<bool(const Value&, const Value&)>& test)
+    {
+        const Value left = context.input("left");
+        const Value right = context.input("right");
+
+        if (!isNumber(left) || !isNumber(right))
+        {
+            reportError(context, node, "cannot order " + pinTypeLabel(typeName(left)) +
+                                       " and " + pinTypeLabel(typeName(right)));
+
+            context.setOutput("result", false);
+
+            return FlowResult::stop();
+        }
+
+        context.setOutput("result", test(left, right));
+
+        return FlowResult::stop();
     }
 }

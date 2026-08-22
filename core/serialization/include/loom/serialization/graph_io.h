@@ -10,14 +10,10 @@ namespace loom
     // A reader that meets a number it does not know refuses the file.
     inline constexpr int kSchemaVersion = 4;
 
-    Value writeGraph(const Graph& graph);
     Value writeProject(const Project& project);
 
-    // Both fill Diagnostics as they go and return false only when the document
-    // is too broken to build anything from at all.
-    bool readGraph(const Value& document, const NodeCatalog& catalog,
-                   Graph& out, Diagnostics& diagnostics);
-
+    // Fills Diagnostics as it goes and returns false only when the document is
+    // too broken to build anything from at all.
     bool readProject(const Value& document, const NodeCatalog& catalog,
                      Project& out, Diagnostics& diagnostics);
 }

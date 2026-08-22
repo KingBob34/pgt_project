@@ -1,6 +1,7 @@
 #ifndef LOOM_RUNTIME_INTERPRETER_H
 #define LOOM_RUNTIME_INTERPRETER_H
 #include <map>
+#include <random>
 #include <set>
 #include <string>
 #include <vector>
@@ -111,6 +112,10 @@ namespace loom
         // The pure nodes part way through being worked out, so that a value
         // asked to help work itself out is caught rather than followed.
         mutable std::set<NodeId>     working;
+
+        // The one source of chance in a run. Seeded once per interpreter, so
+        // nothing a node does outlives the story being played.
+        mutable std::mt19937_64      randomness{ std::random_device{}() };
     };
 }
 

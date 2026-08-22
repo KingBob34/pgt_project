@@ -2,12 +2,12 @@
 
 #include <algorithm>
 
+#include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QLayout>
+#include <QPushButton>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <QHBoxLayout>
-#include <QPushButton>
 
 #include <QtNodes/DataFlowGraphModel>
 
@@ -15,8 +15,11 @@
 #include "node_palette.h"
 #include "pin_editor.h"
 
+#include "loom/qt/convert.h"
 #include "loom/value/inspect.h"
 #include "loom/value/parse.h"
+
+using loom::qt::toQt;
 
 namespace
 {
@@ -30,11 +33,6 @@ namespace
         "}"
         "QPushButton:hover { background: rgba(255, 255, 255, 45); }"
         "QPushButton:disabled { color: #6a6a6a; border-color: rgba(255, 255, 255, 15); }";
-
-    QString toQt(const std::string& text)
-    {
-        return QString::fromStdString(text);
-    }
 
     // The pins on one side of a node as the canvas shows them. Kept to the
     // same rule refreshPins uses, because the two lists are compared with
@@ -437,8 +435,8 @@ QJsonObject NodeAdaptor::save() const
 
     if (!data.pinValues.empty())
     {
-        loom::Value values = loom::Value::object();
-        for (const auto& entry : data.pinValues) values[entry.first] = entry.second;
+        loom::Value values = loom::makeObject();
+        for (const auto& entry : data.pinValues) loom::objectSet(values, entry.first, entry.second);
 
         out["pinValues"] = QJsonDocument::fromJson(
             QByteArray::fromStdString(loom::writeJson(values))).object();
@@ -525,7 +523,7 @@ void NodeAdaptor::rebuildEditors()
                                              {
                                                  data.pinValues[name] = std::move(value);
 
-                                                 Q_EMIT pinValueTyped(QString::fromStdString(name));
+                                                 Q_EMIT pinValueTyped(toQt(name));
 
                                                  if (governs) Q_EMIT requestNodeUpdate();
                                              },

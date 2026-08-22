@@ -58,7 +58,7 @@ namespace loom
             const Value& span = *listAt(*spans, index);
 
             TextRun run;
-            int slot = 0;
+            int     slot = 0;
 
             if (isSlot(span, slot))
             {
@@ -94,14 +94,14 @@ namespace loom
 
     Value prose::fromPlain(const std::string& text)
     {
-        Value span = Value::object();
-        span[kText] = text;
+        Value span = makeObject();
+        objectSet(span, kText, text);
 
-        Value spans = Value::array();
+        Value spans = makeList();
         listAppend(spans, span);
 
-        Value passage = Value::object();
-        passage[kSpans] = spans;
+        Value passage = makeObject();
+        objectSet(passage, kSpans, spans);
 
         return passage;
     }

@@ -4,7 +4,11 @@ namespace loom
 {
     bool parseJson(const std::string& text, Value& out, std::string& error)
     {
-        try {out = Value::parse(text);} catch (const Value::parse_error& failure)
+        try
+        {
+            out = Value::parse(text);
+        }
+        catch (const Value::parse_error& failure)
         {
             error = failure.what();
             return false;

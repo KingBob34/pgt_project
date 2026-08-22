@@ -1,5 +1,6 @@
 #ifndef LOOM_NODES_INTERNAL_H
 #define LOOM_NODES_INTERNAL_H
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,9 +16,8 @@ namespace loom
     PinSpec dataIn (std::string name, std::string label, std::string type, Value defaultValue = Value());
     PinSpec dataOut(std::string name, std::string label, std::string type, Value defaultValue = Value());
 
-    // String inputs that hold prose: a sentence, and a paragraph.
+    // A string input the author writes a sentence into, in a box of its own.
     PinSpec labelTextIn(std::string name, std::string label, Value defaultValue = Value(""));
-    PinSpec longTextIn (std::string name, std::string label, Value defaultValue = Value(""));
 
     // A passage the author writes in the editor, styled and with slots.
     PinSpec proseIn(std::string name, std::string label);
@@ -33,8 +33,21 @@ namespace loom
     PinSpec followsOut(std::string name, std::string label, std::string follows);
 
     // Reports a fault to the front end. The engine never repairs what the
-    // author wrote, so every fault it can detect leaves through here.
-    void reportError(ExecutionContext& context, const std::string& node, const std::string& detail);
+    // author wrote, so every fault it can detect leaves through here. The node
+    // names itself, so the console cannot call it something the menu does not.
+    void reportError(ExecutionContext& context, const NodeType& node, const std::string& detail);
+
+    // Reads the list a node was told to change: the variable named on 'variable',
+    // which must be there and must hold a list. False when it is neither,
+    // having said which.
+    bool readListVariable(ExecutionContext& context, const NodeType& node,
+                          std::string& named, Value& held);
+
+    // The shape shared by every ordering test: read 'left' and 'right', answer
+    // 'result'. Two things with no order between them are reported and
+    // answered false, a pure node having no branch to send a fault down.
+    FlowResult orderedBy(ExecutionContext& context, const NodeType& node,
+                         const std::function<bool(const Value&, const Value&)>& test);
 
     // One factory per node type, each defined in its own translation unit.
     std::unique_ptr<NodeType> makeSceneStartNode();

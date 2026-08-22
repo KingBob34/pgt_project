@@ -54,7 +54,7 @@ namespace loom
                     return FlowResult::stop();
                 }
 
-                reportError(context, "To Float",
+                reportError(context, *this,
                             "cannot read a " + pinTypeLabel(typeName(given)) + " as a number");
 
                 context.setOutput("result", 0.0);

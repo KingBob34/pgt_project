@@ -59,9 +59,13 @@ namespace loom
 
             FlowResult execute(ExecutionContext& context) const override
             {
-                std::vector<Option> options;
+                std::vector<Option>      options;
                 std::vector<std::string> pins;
 
+                // A running node is not told how many options it was given, so
+                // every pin it could have is read. One that is not there reads
+                // as empty, which is also how an option the author left blank
+                // reads, and both are left out.
                 for (int index = 0; index < maxExtraPins(); ++index)
                 {
                     const std::string text = context.inputString(optionName(index));

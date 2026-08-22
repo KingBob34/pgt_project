@@ -16,6 +16,10 @@
 
 #include "node_adaptor.h"
 
+#include "loom/qt/convert.h"
+
+using loom::qt::toQt;
+
 namespace
 {
     // Below the nodes and below the wires, which sit at -1.
@@ -31,11 +35,6 @@ namespace
     constexpr int kMenuWidth = 152;
     constexpr int kMenuHeight = 560;
     constexpr int kMenuIndent = 10;
-
-    QString toQt(const std::string& text)
-    {
-        return QString::fromStdString(text);
-    }
 }
 
 GraphScene::GraphScene(QtNodes::DataFlowGraphModel& model, const loom::NodeCatalog& nodeCatalog,

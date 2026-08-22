@@ -149,21 +149,22 @@ private:
     GraphScene* scene = nullptr;
     GraphView*  view  = nullptr;
 
-    QListWidget* console = nullptr;
-    QTabBar* scenes = nullptr;
+    QListWidget*   console = nullptr;
+    QTabBar*       scenes = nullptr;
 
     // The box renaming a scene, while one is up. It is drawn over one tab and
     // means nothing once the tabs have moved under it.
     QPointer<InlineEdit> sceneBox;
-    QTabWidget* panel = nullptr;
-    DetailsPanel* details = nullptr;
-    ValueTree* values = nullptr;
+
+    QTabWidget*    panel = nullptr;
+    DetailsPanel*  details = nullptr;
+    ValueTree*     values = nullptr;
     PlaytestPanel* playtest = nullptr;
-    QDockWidget* playtestDock = nullptr;
-    QMenu* panelMenu = nullptr;
-    QAction* saveAction = nullptr;
-    QAction* playAction = nullptr;
-    QAction* playHereAction = nullptr;
+    QDockWidget*   playtestDock = nullptr;
+    QMenu*         panelMenu = nullptr;
+    QAction*       saveAction = nullptr;
+    QAction*       playAction = nullptr;
+    QAction*       playHereAction = nullptr;
 
     // True while the scene list is being refilled, so its signals can be ignored.
     bool rebuilding = false;

@@ -5,9 +5,8 @@
 //------------------------------------------------------------------------------
 //  True when the left side is above the right.
 //
-//  Variables carry no declared type, so a comparison between two things that
-//  have no order can only be caught here: the fault is reported and the story
-//  halts rather than quietly answering false.
+//  Two things with no order between them are reported to the console and
+//  answered false: a pure node has no branch to send a fault down.
 //
 //  Inputs
 //      left          Any       must be a number
@@ -39,25 +38,10 @@ namespace loom
 
             FlowResult execute(ExecutionContext& context) const override
             {
-                const Value left = context.input("left");
-                const Value right = context.input("right");
-
-                // Variables carry no declared type, so ordering two things that
-                // have no order can only be caught here. A pure node has no
-                // branch to send that down, so it says so and answers false.
-                if (!isNumber(left) || !isNumber(right))
+                return orderedBy(context, *this, [](const Value& left, const Value& right)
                 {
-                    reportError(context, ">", "cannot order " + pinTypeLabel(typeName(left)) +
-                                                " and " + pinTypeLabel(typeName(right)));
-
-                    context.setOutput("result", false);
-
-                    return FlowResult::stop();
-                }
-
-                context.setOutput("result", lessThan(right, left));
-
-                return FlowResult::stop();
+                    return lessThan(right, left);
+                });
             }
         };
     }

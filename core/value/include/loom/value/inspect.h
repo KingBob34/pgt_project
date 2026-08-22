@@ -24,9 +24,9 @@ namespace loom
 
     // Conversions never throw. A value of the wrong type, or an absent one,
     // reads as the empty value of the type asked for.
-    bool asBool(const Value& value);
-    long long asInt (const Value& value);
-    double asFloat (const Value& value);
+    bool      asBool(const Value& value);
+    long long asInt(const Value& value);
+    double    asFloat(const Value& value);
 
     // Presentation, not reading: any value rendered as text
     std::string toText(const Value& value);
@@ -47,6 +47,12 @@ namespace loom
     // With objectGet, this is the only way to walk an object from outside.
     std::vector<std::string> objectKeys(const Value& value);
 
+    // Building a value. Every layer above this one assembles objects and lists
+    // through these, so the JSON library's own interface stays behind the wall.
+    Value makeObject();
+    Value makeList();
+    void objectSet(Value& object, const std::string& key, Value item);
+
     // List handling. Anything that is not a list counts as empty, and the two
     // that change one leave a value of another kind alone.
     std::size_t listSize(const Value& list);
@@ -54,8 +60,11 @@ namespace loom
     void listAppend(Value& list, Value item);
 
     // Returns nullptr when the value is not a list or is shorter than that.
-    // With listSize, this is the only way to walk a list from outside.
     const Value* listAt(const Value& list, std::size_t index);
+
+    // The items of a list, in order. Anything that is not a list walks as
+    // empty. With listAt, this is the only way to read a list from outside.
+    std::vector<const Value*> listItems(const Value& list);
 
     // Drops the first item equal to this one. False when there was none.
     bool listRemoveFirst(Value& list, const Value& item);

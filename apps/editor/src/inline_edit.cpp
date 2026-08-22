@@ -2,7 +2,6 @@
 
 #include <utility>
 
-#include <QApplication>
 #include <QEvent>
 #include <QKeyEvent>
 #include <QMetaObject>

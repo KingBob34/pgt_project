@@ -25,8 +25,9 @@ private:
     // Follows a value the author typed on the node itself.
     void refresh(const QString& pin);
 
-    QFormLayout* form = nullptr;
+    QFormLayout*          form = nullptr;
     QPointer<NodeAdaptor> shown;
+
     std::map<std::string, QWidget*> fields;
 };
 

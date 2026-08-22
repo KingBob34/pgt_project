@@ -79,18 +79,39 @@ namespace
 
         return graph;
     }
+
+    loom::Project makeProject()
+    {
+        loom::Graph village = makeGraph();
+        village.name = "village";
+
+        loom::Project project;
+        project.meta.title = "Gate Test";
+        project.entry = "gate";
+        project.graphs = { makeGraph(), village };
+
+        return project;
+    }
+
+    // The scene the assertions are about, inside a project document.
+    loom::Value& firstGraph(loom::Value& document)
+    {
+        return document["graphs"][0];
+    }
 }
 
-TEST_CASE("a graph survives being written and read back", "[serialization][round trip]")
+TEST_CASE("a scene survives being written and read back", "[serialization][round trip]")
 {
     const loom::NodeCatalog catalog = makeCatalog();
     const loom::Graph original = makeGraph();
 
-    loom::Graph reloaded;
+    loom::Project opened;
     loom::Diagnostics diagnostics;
-    REQUIRE(loom::readGraph(loom::writeGraph(original), catalog, reloaded, diagnostics));
+    REQUIRE(loom::readProject(loom::writeProject(makeProject()), catalog, opened, diagnostics));
 
     REQUIRE_FALSE(diagnostics.hasErrors());
+
+    const loom::Graph& reloaded = opened.graphs.front();
 
     REQUIRE(reloaded.name == original.name);
     REQUIRE(reloaded.meta.title == original.meta.title);
@@ -123,27 +144,21 @@ TEST_CASE("writing twice gives the same document", "[serialization][round trip]"
 {
     const loom::NodeCatalog catalog = makeCatalog();
 
-    loom::Graph reloaded;
+    loom::Project reloaded;
     loom::Diagnostics diagnostics;
-    const loom::Value once = loom::writeGraph(makeGraph());
-    REQUIRE(loom::readGraph(once, catalog, reloaded, diagnostics));
+    const loom::Value once = loom::writeProject(makeProject());
+    REQUIRE(loom::readProject(once, catalog, reloaded, diagnostics));
 
     // A save that changes the file without the author changing anything makes
     // every diff useless, so the second pass has to land on the same bytes.
-    REQUIRE(loom::writeGraph(reloaded) == once);
+    REQUIRE(loom::writeProject(reloaded) == once);
 }
 
 TEST_CASE("a project survives being written and read back", "[serialization][round trip]")
 {
     const loom::NodeCatalog catalog = makeCatalog();
 
-    loom::Graph village = makeGraph();
-    village.name = "village";
-
-    loom::Project original;
-    original.meta.title = "Gate Test";
-    original.entry = "gate";
-    original.graphs = { makeGraph(), village };
+    const loom::Project original = makeProject();
 
     loom::Project reloaded;
     loom::Diagnostics diagnostics;
@@ -159,23 +174,23 @@ TEST_CASE("a document from an unknown format version is refused", "[serializatio
 {
     const loom::NodeCatalog catalog = makeCatalog();
 
-    loom::Graph reloaded;
+    loom::Project reloaded;
     loom::Diagnostics diagnostics;
 
     SECTION("no version at all")
     {
-        loom::Value document = loom::writeGraph(makeGraph());
+        loom::Value document = loom::writeProject(makeProject());
         document.erase("schemaVersion");
 
-        REQUIRE_FALSE(loom::readGraph(document, catalog, reloaded, diagnostics));
+        REQUIRE_FALSE(loom::readProject(document, catalog, reloaded, diagnostics));
     }
 
     SECTION("a version from the future")
     {
-        loom::Value document = loom::writeGraph(makeGraph());
+        loom::Value document = loom::writeProject(makeProject());
         document["schemaVersion"] = loom::kSchemaVersion + 1;
 
-        REQUIRE_FALSE(loom::readGraph(document, catalog, reloaded, diagnostics));
+        REQUIRE_FALSE(loom::readProject(document, catalog, reloaded, diagnostics));
     }
 
     REQUIRE(diagnostics.hasErrors());
@@ -185,37 +200,39 @@ TEST_CASE("one unreadable record does not cost the whole file", "[serialization]
 {
     const loom::NodeCatalog catalog = makeCatalog();
 
-    loom::Value document = loom::writeGraph(makeGraph());
+    loom::Value document = loom::writeProject(makeProject());
 
     // A third node with no type at all, as an outside tool might leave it.
     loom::Value broken = loom::Value::object();
     broken["id"] = 3;
     broken["position"] = loom::Value::object();
-    document["nodes"].push_back(broken);
+    firstGraph(document)["nodes"].push_back(broken);
 
-    loom::Graph reloaded;
+    loom::Project reloaded;
     loom::Diagnostics diagnostics;
 
-    REQUIRE(loom::readGraph(document, catalog, reloaded, diagnostics));
+    REQUIRE(loom::readProject(document, catalog, reloaded, diagnostics));
     REQUIRE(diagnostics.hasErrors());
 
     // The two good nodes are still there, and the fault names the bad one.
-    REQUIRE(reloaded.nodes.size() == 2);
-    REQUIRE(reloaded.findNode(1) != nullptr);
-    REQUIRE(reloaded.findNode(2) != nullptr);
+    const loom::Graph& gate = reloaded.graphs.front();
+
+    REQUIRE(gate.nodes.size() == 2);
+    REQUIRE(gate.findNode(1) != nullptr);
+    REQUIRE(gate.findNode(2) != nullptr);
 }
 
-TEST_CASE("reading a graph validates it in the same call", "[serialization][reader]")
+TEST_CASE("reading a story validates it in the same call", "[serialization][reader]")
 {
     const loom::NodeCatalog catalog = makeCatalog();
 
-    loom::Value document = loom::writeGraph(makeGraph());
-    document["connections"][0]["toPin"] = "nosuchpin";
+    loom::Value document = loom::writeProject(makeProject());
+    firstGraph(document)["connections"][0]["toPin"] = "nosuchpin";
 
-    loom::Graph reloaded;
+    loom::Project reloaded;
     loom::Diagnostics diagnostics;
 
-    REQUIRE(loom::readGraph(document, catalog, reloaded, diagnostics));
+    REQUIRE(loom::readProject(document, catalog, reloaded, diagnostics));
 
     // Nothing asked for validation: a graph that has been read has been checked.
     REQUIRE(diagnostics.hasErrors());

@@ -39,7 +39,7 @@ namespace loom
 
                 if (!isList(list))
                 {
-                    reportError(context, "Contains",
+                    reportError(context, *this,
                                 "cannot look inside a " + pinTypeLabel(typeName(list)));
 
                     context.setOutput("result", false);

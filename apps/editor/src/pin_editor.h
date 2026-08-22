@@ -19,7 +19,7 @@ using PinChanged = std::function<void(loom::Value)>;
 struct PinEditor
 {
     QWidget* widget = nullptr;
-    int rows = 1;
+    int      rows = 1;
 };
 
 // The editor for one pin. A null widget means the type has none. The declared

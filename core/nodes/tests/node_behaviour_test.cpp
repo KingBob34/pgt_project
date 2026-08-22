@@ -81,6 +81,10 @@ namespace
             variables[name] = std::move(value);
         }
 
+        // Always the low end, so a test that reaches this can still say what
+        // it expects.
+        long long randomInt(long long low, long long) override { return low; }
+
         loom::Host& host() override { return recorder; }
 
         std::map<std::string, loom::Value> inputs;

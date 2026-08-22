@@ -5,11 +5,9 @@
 //------------------------------------------------------------------------------
 //  Reads a global variable, at the moment something asks for its value.
 //
-//  The variable is picked from the story's declared globals and no wire can
-//  reach that pin, so the one it names is always there: a variable holding
-//  zero is not a missing variable. The only way to ask for one that is gone is
-//  to delete it from the panel while a node still names it, and that is a
-//  fault to report rather than a route the story can take.
+//  The variable is picked from the declared globals and no wire reaches that
+//  pin, so a name that leads nowhere means the variable was deleted from under
+//  it. That is reported, not offered as a second route.
 //
 //  Inputs
 //      name          Variable  the declared global to read; no wire reaches it
@@ -45,7 +43,7 @@ namespace loom
 
                 if (!context.readVariable(name, found))
                 {
-                    reportError(context, "Get Variable",
+                    reportError(context, *this,
                                 "there is no variable called '" + name + "'");
                 }
 

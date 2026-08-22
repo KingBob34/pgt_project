@@ -1,7 +1,5 @@
 #include "nodes_internal.h"
 
-#include <random>
-
 //==============================================================================
 //  Random Integer                                                  Values
 //------------------------------------------------------------------------------
@@ -45,15 +43,12 @@ namespace loom
 
                 if (low > high)
                 {
-                    reportError(context, "Random Integer",
+                    reportError(context, *this,
                                 "Min " + std::to_string(low) + " is greater than Max " + std::to_string(high));
                     return FlowResult::stop();
                 }
 
-                static std::mt19937_64 engine{ std::random_device{}() };
-                std::uniform_int_distribution<long long> range(low, high);
-
-                context.setOutput("result", range(engine));
+                context.setOutput("result", context.randomInt(low, high));
 
                 return FlowResult::continueOn("out");
             }

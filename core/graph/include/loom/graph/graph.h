@@ -63,8 +63,7 @@ namespace loom
         std::vector<std::string> choices;   // the allowed values of a Choice
     };
 
-    // The pin type a variable of this declared type travels as. The containers
-    // have no pin of their own, so they travel as Any.
+    // The pin type a variable of this declared type travels as.
     std::string pinTypeOfVariable(const std::string& variableType);
 
     // Every name a node may choose, sorted: the declared variables and, joined

@@ -64,14 +64,14 @@ namespace loom
                         return FlowResult::stop();
                     }
 
-                    reportError(context, "To Bool", "'" + text + "' is neither true nor false");
+                    reportError(context, *this, "'" + text + "' is neither true nor false");
 
                     context.setOutput("result", false);
 
                     return FlowResult::stop();
                 }
 
-                reportError(context, "To Bool",
+                reportError(context, *this,
                             "cannot read a " + pinTypeLabel(typeName(given)) +
                             " as true or false");
 

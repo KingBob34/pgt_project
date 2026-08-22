@@ -4,13 +4,11 @@
 //  Comment                                                        Utility
 //------------------------------------------------------------------------------
 //  A frame drawn round part of the graph, with a title on it. The engine never
-//  runs it. Its size is kept on pins like any other value, so a story that has
-//  one in it is the same file as a story that does not.
+//  runs it. Its size is kept on hidden pins like any other value, so a story
+//  that has one in it is the same file as a story that does not.
 //
 //  Inputs
-//      text          String
-//      width         Int
-//      height        Int
+//      text          String    the title written on the frame
 //==============================================================================
 
 namespace loom
@@ -30,9 +28,15 @@ namespace loom
             {
                 // No connectors of any kind: nothing may be wired to a frame.
                 return { labelTextIn("text", "Title", Value("Comment")),
-                         dataIn("width",  "Width",  PinType::Int, Value(360)),
-                         dataIn("height", "Height", PinType::Int, Value(220)) };
+                         sizeIn("width", kLeastWidth),
+                         sizeIn("height", kLeastHeight) };
             }
+
+        private:
+            // The smallest the frame is worth drawing, which is also the size a
+            // new one is made at.
+            static constexpr int kLeastWidth = 360;
+            static constexpr int kLeastHeight = 220;
         };
     }
 

@@ -11,6 +11,7 @@ add_executable(LoomGame WIN32
 
 target_link_libraries(LoomGame PRIVATE
         Qt6::Widgets
+        loom_qt_common
         loom_serialization
         loom_runtime
         loom_nodes

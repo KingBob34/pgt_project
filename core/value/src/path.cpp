@@ -9,7 +9,7 @@ namespace loom
         std::size_t start = 0;
         while (true)
         {
-            const std::size_t dot = path.find(".", start);
+            const std::size_t dot = path.find('.', start);
             if (dot == std::string::npos)
             {
                 segments.push_back(path.substr(start));

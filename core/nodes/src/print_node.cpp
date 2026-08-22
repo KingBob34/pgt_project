@@ -34,8 +34,8 @@ namespace loom
 
             FlowResult execute(ExecutionContext& context) const override
             {
-                Value details = Value::object();
-                details["text"] = toText(context.input("value"));
+                Value details = makeObject();
+                objectSet(details, "text", toText(context.input("value")));
 
                 context.host().command("print", details);
 

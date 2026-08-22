@@ -5,8 +5,8 @@
 
 #include "loom/graph/execution.h"
 
-// A front end that records instead of showing. Its existence is the proof
-// that the core never assumes a window, a terminal, or any other output.
+// A front end that records instead of showing, so a test can read back what
+// the story asked for.
 class TestHost : public loom::Host
 {
 public:

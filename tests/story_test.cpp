@@ -12,9 +12,8 @@
 #include "loom/value/inspect.h"
 #include "loom/value/parse.h"
 
-// The first test that puts the whole engine together: a story written as JSON
-// is read, validated and played through to each of its endings. Nothing here
-// touches a window or a terminal, which is the point.
+// The one test that puts the whole engine together: a story written as JSON is
+// read, validated and played through to each of its endings.
 namespace
 {
     const char* kStory = R"({

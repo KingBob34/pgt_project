@@ -12,6 +12,10 @@
 #include "graph_model.h"
 #include "node_adaptor.h"
 
+#include "loom/qt/convert.h"
+
+using loom::qt::toQt;
+
 namespace
 {
     // The record QtNodes' own loader expects. Pin values are not in it; the
@@ -19,7 +23,7 @@ namespace
     QJsonObject nodeRecord(const loom::NodeInstance& node)
     {
         QJsonObject internal;
-        internal["model-name"] = QString::fromStdString(node.type);
+        internal["model-name"] = toQt(node.type);
 
         QJsonObject position;
         position["x"] = node.position.x;
@@ -59,7 +63,7 @@ void GraphDocument::reset()
     {
         if (!type->isEntryPoint()) continue;
 
-        model.addNode(QString::fromStdString(type->name()));
+        model.addNode(toQt(type->name()));
         break;
     }
 }

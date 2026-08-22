@@ -5,7 +5,6 @@
 #include <functional>
 
 #include <QAbstractItemView>
-#include <QColor>
 #include <QCoreApplication>
 #include <QDir>
 #include <QEvent>
@@ -22,10 +21,14 @@
 #include <QVBoxLayout>
 
 #include "loom/nodes/builtin.h"
+#include "loom/qt/convert.h"
+#include "loom/qt/passage.h"
 #include "loom/runtime/save.h"
 #include "loom/serialization/graph_io.h"
 #include "loom/value/inspect.h"
 #include "loom/value/parse.h"
+
+using loom::qt::toQt;
 
 namespace
 {
@@ -74,11 +77,11 @@ namespace
         "}"
         "QPushButton:hover { color: #1a1a1a; }";
 
-    // The passage is white whatever the desktop theme is, so the buttons state
-    // their own colours instead of inheriting a dark palette.
     // Options are unstyled by the author, so the shell settles their size.
     constexpr int kOptionSize = 16;
 
+    // The passage is white whatever the desktop theme is, so the buttons state
+    // their own colours instead of inheriting a dark palette.
     QString optionStyle(int fontSize)
     {
         return QString("QPushButton {"
@@ -98,49 +101,6 @@ namespace
                        "  border-color: #d8d8d8;"
                        "}").arg(fontSize);
     }
-
-    QString toQt(const std::string& text)
-    {
-        return QString::fromStdString(text);
-    }
-
-    // Colour components run from 0.0 to 1.0, and JSON drops a zero fraction.
-    int channel(const loom::Value& source, const std::string& key)
-    {
-        const loom::Value* component = loom::objectGet(source, key);
-        if (component == nullptr) return 0;
-
-        const double scaled = loom::isInt(*component)
-                            ? static_cast<double>(loom::asInt(*component))
-                            : loom::asFloat(*component);
-
-        return static_cast<int>(scaled * 255.0);
-    }
-
-    QColor toColor(const loom::Value& value)
-    {
-        if (!loom::isObject(value)) return QColor(Qt::black);
-
-        return QColor(channel(value, "r"), channel(value, "g"),
-                      channel(value, "b"), channel(value, "a"));
-    }
-
-    // The look the author gave a run, as the inline style of one span. What
-    // was left unset is left out, so the reader default shows through.
-    QString spanOf(const loom::TextRun& run)
-    {
-        QString style;
-
-        if (!run.font.empty()) style += QString("font-family:'%1';").arg(toQt(run.font));
-        if (run.size > 0)      style += QString("font-size:%1pt;").arg(run.size);
-
-        if (!loom::isNull(run.color)) style += QString("color:%1;").arg(toColor(run.color).name());
-
-        const QString words = toQt(run.text).toHtmlEscaped().replace("\n", "<br>");
-
-        return QString("<span style=\"%1\">%2</span>").arg(style, words);
-    }
-
 
     QString countOf(int count, const QString& noun)
     {
@@ -549,7 +509,7 @@ void PlayerWindow::openStory(const QString& path)
     passage->clear();
 
     std::string text;
-    QString failure;
+    QString     failure;
     if (!readFile(path, text, failure))
     {
         report("Cannot read " + path + ":\n" + failure);
@@ -598,11 +558,7 @@ void PlayerWindow::openStory(const QString& path)
 
 void PlayerWindow::showText(const std::vector<loom::TextRun>& runs)
 {
-    QString html;
-
-    for (const loom::TextRun& run : runs) html += spanOf(run);
-
-    passage->append("<p>" + html + "</p>");
+    passage->append(loom::qt::passageHtml(runs));
 }
 
 void PlayerWindow::askChoice(const std::vector<loom::Option>& options)
@@ -701,7 +657,7 @@ void PlayerWindow::loadGame()
     if (path.isEmpty()) return;
 
     std::string text;
-    QString failure;
+    QString     failure;
     if (!readFile(path, text, failure))
     {
         report("Cannot read " + path + ":\n" + failure);

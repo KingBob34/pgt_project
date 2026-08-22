@@ -26,8 +26,8 @@ namespace loom
 
         Value writeMap(const std::map<std::string, Value>& entries)
         {
-            Value out = Value::object();
-            for (const auto& entry : entries) out[entry.first] = entry.second;
+            Value out = makeObject();
+            for (const auto& entry : entries) objectSet(out, entry.first, entry.second);
 
             return out;
         }
@@ -46,40 +46,43 @@ namespace loom
 
     Value writeSave(const SaveState& state)
     {
-        Value frames = Value::array();
+        Value frames = makeList();
         for (const Frame& frame : state.callStack)
         {
-            Value record = Value::object();
-            record["graph"] = frame.graphName;
-            record["node"] = frame.nodeId;
-            record["locals"] = writeMap(frame.locals);
-            frames.push_back(record);
+            Value record = makeObject();
+            objectSet(record, "graph", frame.graphName);
+            objectSet(record, "node", frame.nodeId);
+            objectSet(record, "locals", writeMap(frame.locals));
+            listAppend(frames, record);
         }
 
         // An array, not an object: a slot is keyed by three fields, not by a string.
-        Value slots = Value::array();
+        Value slots = makeList();
         for (const auto& slot : state.outputs)
         {
-            Value record = Value::object();
-            record["graph"] = slot.first.graphName;
-            record["node"] = slot.first.node;
-            record["pin"] = slot.first.pin;
-            record["value"] = slot.second;
-            slots.push_back(record);
+            Value record = makeObject();
+            objectSet(record, "graph", slot.first.graphName);
+            objectSet(record, "node", slot.first.node);
+            objectSet(record, "pin", slot.first.pin);
+            objectSet(record, "value", slot.second);
+            listAppend(slots, record);
         }
 
-        Value pending = Value::object();
-        pending["kind"] = pendingKindName(state.pending.kind);
-        pending["pin"] = state.pending.pin;
-        pending["optionPins"] = state.pending.optionPins;
+        Value optionPins = makeList();
+        for (const std::string& pin : state.pending.optionPins) listAppend(optionPins, pin);
 
-        Value document = Value::object();
-        document["saveVersion"] = kSaveVersion;
-        document["callStack"] = frames;
-        document["variables"] = writeMap(state.variables);
-        document["outputs"] = slots;
-        document["pending"] = pending;
-        document["done"] = state.done;
+        Value pending = makeObject();
+        objectSet(pending, "kind", pendingKindName(state.pending.kind));
+        objectSet(pending, "pin", state.pending.pin);
+        objectSet(pending, "optionPins", optionPins);
+
+        Value document = makeObject();
+        objectSet(document, "saveVersion", kSaveVersion);
+        objectSet(document, "callStack", frames);
+        objectSet(document, "variables", writeMap(state.variables));
+        objectSet(document, "outputs", slots);
+        objectSet(document, "pending", pending);
+        objectSet(document, "done", state.done);
 
         return document;
     }
@@ -97,13 +100,13 @@ namespace loom
 
         if (const Value* frames = objectGet(document, "callStack"))
         {
-            for (const Value& record : *frames)
+            for (const Value* record : listItems(*frames))
             {
                 Frame frame;
 
-                if (const Value* graph = objectGet(record, "graph")) frame.graphName = asString(*graph);
-                if (const Value* node = objectGet(record, "node")) frame.nodeId = static_cast<NodeId>(asInt(*node));
-                if (const Value* locals = objectGet(record, "locals")) readMap(*locals, frame.locals);
+                if (const Value* graph = objectGet(*record, "graph")) frame.graphName = asString(*graph);
+                if (const Value* node = objectGet(*record, "node")) frame.nodeId = static_cast<NodeId>(asInt(*node));
+                if (const Value* locals = objectGet(*record, "locals")) readMap(*locals, frame.locals);
 
                 out.callStack.push_back(frame);
             }
@@ -119,14 +122,14 @@ namespace loom
 
         if (const Value* slots = objectGet(document, "outputs"))
         {
-            for (const Value& record : *slots)
+            for (const Value* record : listItems(*slots))
             {
                 PinRef reference;
 
-                if (const Value* graph = objectGet(record, "graph")) reference.graphName = asString(*graph);
-                if (const Value* node = objectGet(record, "node")) reference.node = static_cast<NodeId>(asInt(*node));
-                if (const Value* pin = objectGet(record, "pin")) reference.pin = asString(*pin);
-                if (const Value* value = objectGet(record, "value")) out.outputs[reference] = *value;
+                if (const Value* graph = objectGet(*record, "graph")) reference.graphName = asString(*graph);
+                if (const Value* node = objectGet(*record, "node")) reference.node = static_cast<NodeId>(asInt(*node));
+                if (const Value* pin = objectGet(*record, "pin")) reference.pin = asString(*pin);
+                if (const Value* value = objectGet(*record, "value")) out.outputs[reference] = *value;
             }
         }
 
@@ -137,7 +140,7 @@ namespace loom
 
             if (const Value* pins = objectGet(*pending, "optionPins"))
             {
-                for (const Value& pin : *pins) out.pending.optionPins.push_back(asString(pin));
+                for (const Value* pin : listItems(*pins)) out.pending.optionPins.push_back(asString(*pin));
             }
         }
 

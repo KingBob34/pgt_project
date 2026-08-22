@@ -1,7 +1,6 @@
-#include <set>
-
 #include "loom/runtime/interpreter.h"
 
+#include <set>
 #include <tuple>
 #include <utility>
 
@@ -16,6 +15,26 @@ namespace loom
         // needs, and reached in an instant by a story that circles forever.
         constexpr long long kStepBudget = 100000;
 
+        // Where a frame is standing: the graph, the node on it, and the type
+        // behind that node. The type is null when any of the three is missing.
+        struct Standing
+        {
+            const Graph*        graph = nullptr;
+            const NodeInstance* node  = nullptr;
+            const NodeType*     type  = nullptr;
+        };
+
+        Standing standingAt(const Project& project, const NodeCatalog& catalog, const Frame& frame)
+        {
+            Standing here;
+
+            here.graph = project.findGraph(frame.graphName);
+            here.node  = here.graph != nullptr ? here.graph->findNode(frame.nodeId) : nullptr;
+            here.type  = here.node != nullptr ? catalog.find(here.node->type) : nullptr;
+
+            return here;
+        }
+
         const PinSpec* findPin(const std::vector<PinSpec>& pins, const std::string& name)
         {
             for (const PinSpec& pin : pins)
@@ -28,8 +47,8 @@ namespace loom
 
         void reportFault(Host& host, const std::string& detail)
         {
-            Value details = Value::object();
-            details["detail"] = detail;
+            Value details = makeObject();
+            objectSet(details, "detail", detail);
 
             host.command("error", details);
         }
@@ -66,10 +85,11 @@ namespace loom
                            const std::map<std::string, VariableSpec>& declared,
                            const NodeCatalog& catalog,
                            std::set<NodeId>& working,
+                           std::mt19937_64& randomness,
                            Host& host)
                 : graph(graph), node(node), pins(pins),
                   outputs(outputs), variables(variables), declared(declared),
-                  catalog(catalog), working(working), hostRef(host) {}
+                  catalog(catalog), working(working), randomness(randomness), hostRef(host) {}
 
             Value input(const std::string& pin) const override
             {
@@ -169,6 +189,13 @@ namespace loom
                 }
             }
 
+            long long randomInt(long long low, long long high) override
+            {
+                std::uniform_int_distribution<long long> range(low, high);
+
+                return range(randomness);
+            }
+
             Host& host() override { return hostRef; }
 
         private:
@@ -193,7 +220,7 @@ namespace loom
                 const std::vector<PinSpec> made = type->pins(upstream->extraPins);
 
                 RuntimeContext nested(graph, *upstream, made, outputs, variables, declared,
-                                      catalog, working, hostRef);
+                                      catalog, working, randomness, hostRef);
 
                 // Discarded: a pure node has no flow output to be sent along.
                 type->execute(nested);
@@ -211,6 +238,7 @@ namespace loom
 
             const NodeCatalog& catalog;
             std::set<NodeId>&  working;
+            std::mt19937_64&   randomness;
 
             Host& hostRef;
         };
@@ -220,7 +248,6 @@ namespace loom
     {
         return std::tie(graphName, node, pin) < std::tie(other.graphName, other.node, other.pin);
     }
-
 
     bool PinRef::operator==(const PinRef& other) const
     {
@@ -342,23 +369,20 @@ namespace loom
                 return;
             }
 
-            const Frame& frame = callStack.back();
+            const Standing here = standingAt(project, catalog, callStack.back());
 
-            const Graph* graph = project.findGraph(frame.graphName);
-            const NodeInstance* node = graph != nullptr ? graph->findNode(frame.nodeId) : nullptr;
-            const NodeType* type = node != nullptr ? catalog.find(node->type) : nullptr;
-
-            if (type == nullptr)
+            if (here.type == nullptr)
             {
                 done = true;
                 return;
             }
 
-            const std::vector<PinSpec> pins = type->pins(node->extraPins);
-            RuntimeContext context(*graph, *node, pins, outputs, variables, project.variables,
-                               catalog, working, host);
+            const std::vector<PinSpec> pins = here.type->pins(here.node->extraPins);
 
-            const FlowResult result = type->execute(context);
+            RuntimeContext context(*here.graph, *here.node, pins, outputs, variables,
+                                   project.variables, catalog, working, randomness, host);
+
+            const FlowResult result = here.type->execute(context);
 
             switch (result.kind)
             {
@@ -414,21 +438,18 @@ namespace loom
     {
         if (pending.kind != Pending::Kind::Choice) return;
 
-        const Frame& frame = callStack.back();
+        const Standing here = standingAt(project, catalog, callStack.back());
 
-        const Graph* graph = project.findGraph(frame.graphName);
-        const NodeInstance* node = graph != nullptr ? graph->findNode(frame.nodeId) : nullptr;
-        const NodeType* type = node != nullptr ? catalog.find(node->type) : nullptr;
+        if (here.type == nullptr) return;
 
-        if (type == nullptr) return;
+        const std::vector<PinSpec> pins = here.type->pins(here.node->extraPins);
 
-        const std::vector<PinSpec> pins = type->pins(node->extraPins);
-        RuntimeContext context(*graph, *node, pins, outputs, variables, project.variables,
-                               catalog, working, host);
+        RuntimeContext context(*here.graph, *here.node, pins, outputs, variables,
+                               project.variables, catalog, working, randomness, host);
 
         // Running the node again only re-issues the prompt: it suspended last
         // time without changing anything, so it will do the same now.
-        type->execute(context);
+        here.type->execute(context);
     }
 
     std::string Interpreter::currentGraph() const
@@ -450,7 +471,6 @@ namespace loom
     {
         return pending.kind != Pending::Kind::None;
     }
-
 
     SaveState Interpreter::save() const
     {

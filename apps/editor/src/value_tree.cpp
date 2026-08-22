@@ -9,20 +9,24 @@
 #include <QHeaderView>
 #include <QMenu>
 #include <QPushButton>
+#include <QPalette>
 #include <QStyledItemDelegate>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
 #include "pin_editor.h"
 
+#include "loom/qt/convert.h"
 #include "loom/value/inspect.h"
 #include "loom/value/parse.h"
+
+using loom::qt::toQt;
 
 namespace
 {
     constexpr int kIndent = 12;
+    constexpr int kNameWidth = 150;
     constexpr int kTypeWidth = 96;
-    constexpr int kValueWidth = 130;
     constexpr int kNarrowestColumn = 64;
 
     // A list is indexed from zero, but the panel is not the file and the
@@ -44,7 +48,20 @@ namespace
         {
             if (index.column() != 0) return nullptr;
 
-            return QStyledItemDelegate::createEditor(parent, option, index);
+            QWidget* editor = QStyledItemDelegate::createEditor(parent, option, index);
+            if (editor == nullptr) return nullptr;
+
+            // The view goes on drawing the row underneath the editor, so an
+            // editor that does not fill its own background leaves the old name
+            // showing through whatever is typed over it. Both background roles
+            // are set, because which one is filled depends on the widget.
+            QPalette solid = editor->palette();
+            solid.setColor(QPalette::Window, solid.color(QPalette::Base));
+
+            editor->setPalette(solid);
+            editor->setAutoFillBackground(true);
+
+            return editor;
         }
     };
 
@@ -69,8 +86,8 @@ namespace
         if (type == loom::VariableType::Int)   return loom::Value(0);
         if (type == loom::VariableType::Float) return loom::Value(0.0);
         if (type == loom::VariableType::Bool)  return loom::Value(false);
-        if (type == loom::VariableType::List)  return loom::Value::array();
-        if (type == loom::VariableType::Group) return loom::Value::object();
+        if (type == loom::VariableType::List)  return loom::makeList();
+        if (type == loom::VariableType::Group) return loom::makeObject();
 
         return loom::Value("");
     }
@@ -78,7 +95,7 @@ namespace
     // The row keeps its value as the text it will be written to file as.
     QString asText(const loom::Value& value)
     {
-        return QString::fromStdString(loom::writeJson(value));
+        return toQt(loom::writeJson(value));
     }
 
     loom::Value fromText(const QString& text)
@@ -124,14 +141,17 @@ ValueTree::ValueTree(QWidget* parent)
     tree->setIndentation(kIndent);
     tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
+    // Every divider drags, and the value column takes up whatever is left. A
+    // stretched section has no edge to take hold of, so making one of the first
+    // two stretch would leave its divider dead and move the other one twice.
     QHeaderView* header = tree->header();
-    header->setStretchLastSection(false);
     header->setMinimumSectionSize(kNarrowestColumn);
-    header->setSectionResizeMode(0, QHeaderView::Stretch);
+    header->setSectionResizeMode(0, QHeaderView::Interactive);
     header->setSectionResizeMode(1, QHeaderView::Interactive);
     header->setSectionResizeMode(2, QHeaderView::Interactive);
+    header->setStretchLastSection(true);
+    header->resizeSection(0, kNameWidth);
     header->resizeSection(1, kTypeWidth);
-    header->resizeSection(2, kValueWidth);
 
     connect(tree, &QTreeWidget::itemChanged, this, [this](QTreeWidgetItem* row, int column)
     {
@@ -156,7 +176,7 @@ ValueTree::ValueTree(QWidget* parent)
             if (seen > 1)
             {
                 filling = true;
-                row->setText(0, QString::fromStdString(uniqueName(parent, typed)));
+                row->setText(0, toQt(uniqueName(parent, typed)));
                 filling = false;
             }
         }
@@ -254,19 +274,19 @@ loom::Value ValueTree::valueOf(QTreeWidgetItem* row) const
 
     if (type == loom::VariableType::List)
     {
-        loom::Value out = loom::Value::array();
-        for (int at = 0; at < row->childCount(); ++at) out.push_back(valueOf(row->child(at)));
+        loom::Value out = loom::makeList();
+        for (int at = 0; at < row->childCount(); ++at) loom::listAppend(out, valueOf(row->child(at)));
 
         return out;
     }
 
     if (type == loom::VariableType::Group)
     {
-        loom::Value out = loom::Value::object();
+        loom::Value out = loom::makeObject();
         for (int at = 0; at < row->childCount(); ++at)
         {
             QTreeWidgetItem* child = row->child(at);
-            out[child->text(0).toStdString()] = valueOf(child);
+            loom::objectSet(out, child->text(0).toStdString(), valueOf(child));
         }
 
         return out;
@@ -305,14 +325,14 @@ void ValueTree::fillRow(QTreeWidgetItem* row, const std::string& name,
     if (named) row->setFlags(row->flags() | Qt::ItemIsEditable);
     else       row->setFlags(row->flags() & ~Qt::ItemIsEditable);
 
-    row->setText(0, QString::fromStdString(name));
+    row->setText(0, toQt(name));
     row->setData(0, Qt::UserRole, asText(value));
-    row->setData(0, Qt::UserRole + 1, QString::fromStdString(name));
+    row->setData(0, Qt::UserRole + 1, toQt(name));
 
     QComboBox* types = new QComboBox;
     for (const auto& entry : typeChoices()) types->addItem(entry.second, QString(entry.first));
 
-    const int picked = types->findData(QString::fromStdString(type));
+    const int picked = types->findData(toQt(type));
     types->setCurrentIndex(picked < 0 ? 0 : picked);
 
     // Connected last: setCurrentIndex would otherwise blank the value.
@@ -416,7 +436,7 @@ void ValueTree::renumber(QTreeWidgetItem* list)
 
     for (int at = 0; at < list->childCount(); ++at)
     {
-        list->child(at)->setText(0, QString::fromStdString(rowLabel(at)));
+        list->child(at)->setText(0, toQt(rowLabel(at)));
     }
 
     filling = was;

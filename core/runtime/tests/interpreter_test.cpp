@@ -210,6 +210,47 @@ TEST_CASE("a jump continues in another graph", "[runtime][interpreter]")
     REQUIRE(interpreter.save().callStack.back().graphName == "village");
 }
 
+TEST_CASE("a jump to a scene that is not there is reported", "[runtime][interpreter]")
+{
+    // The author mistyped the name of the scene they meant.
+    loom::NodeInstance leave = stub::node(2, "leave");
+    leave.pinValues["scene"] = "vilage";
+
+    const loom::Project project = makeProject({
+        makeGraph("gate",
+            { stub::node(1, "start"), leave },
+            { { 1, "out", 2, "in" } }),
+        makeGraph("village",
+            { stub::node(1, "start"), stub::node(2, "end") },
+            { { 1, "out", 2, "in" } }) });
+
+    const loom::NodeCatalog catalog = stub::makeCatalog();
+    TestHost host;
+
+    loom::Interpreter interpreter(project, catalog, host);
+    interpreter.start();
+
+    REQUIRE(interpreter.finished());
+
+    // Stopping is not enough: the name that led nowhere has to be said, or the
+    // story simply ends and the author has nothing to go on.
+    bool named = false;
+
+    for (const TestHost::Command& command : host.commands)
+    {
+        if (command.name != "error") continue;
+
+        const loom::Value* detail = loom::objectGet(command.args, "detail");
+
+        if (detail != nullptr && loom::asString(*detail).find("vilage") != std::string::npos)
+        {
+            named = true;
+        }
+    }
+
+    REQUIRE(named);
+}
+
 TEST_CASE("a flow output with no wire ends the story", "[runtime][interpreter]")
 {
     const loom::Project project = makeProject({ makeGraph("gate",

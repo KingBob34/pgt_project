@@ -1,11 +1,9 @@
 #include "pin_editor.h"
 
-#include <utility>
-
+#include <algorithm>
 #include <map>
 #include <string>
-
-#include <algorithm>
+#include <utility>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -19,7 +17,10 @@
 
 #include "node_metrics.h"
 
+#include "loom/qt/convert.h"
 #include "loom/value/inspect.h"
+
+using loom::qt::toQt;
 
 namespace
 {
@@ -63,8 +64,8 @@ namespace
 
     PinEditor makeString(const loom::PinSpec& pin, const loom::Value& value, const PinChanged& changed)
     {
-        const QString text = QString::fromStdString(loom::asString(value));
-        const QString hint = QString::fromStdString(pin.label);
+        const QString text = toQt(loom::asString(value));
+        const QString hint = toQt(pin.label);
 
         if (pin.textShape != loom::TextShape::Line)
         {
@@ -77,7 +78,7 @@ namespace
                 changed(box->toPlainText().toStdString());
             });
 
-            return { box, pin.textShape == loom::TextShape::Passage ? metrics::paragraphRows : metrics::labelRows };
+            return { box, metrics::labelRows };
         }
 
         QLineEdit* field = new QLineEdit(text);
@@ -96,7 +97,7 @@ namespace
     PinEditor makeVariable(const loom::Value& value, const PinChanged& changed,
                            const std::map<std::string, loom::VariableSpec>& variables)
     {
-        const QString chosen = QString::fromStdString(loom::asString(value));
+        const QString chosen = toQt(loom::asString(value));
 
         QComboBox* box = new QComboBox;
         box->addItem(QString(), QString());
@@ -105,8 +106,8 @@ namespace
         // reach into a group without a walk of its own.
         for (const std::string& path : loom::variablePaths(variables))
         {
-            const QString name = QString::fromStdString(path);
-            const QString type = QString::fromStdString(loom::declaredTypeAt(variables, path));
+            const QString name = toQt(path);
+            const QString type = toQt(loom::declaredTypeAt(variables, path));
 
             box->addItem(name + "  (" + type + ")", name);
         }
@@ -184,9 +185,8 @@ void fitToNode(QWidget* editor, const loom::PinSpec& pin)
 
     if (pin.type == loom::PinType::String)
     {
-        if (pin.textShape == loom::TextShape::Passage)    editor->setFixedWidth(metrics::paragraphWidth);
-        else if (pin.textShape == loom::TextShape::Label) editor->setFixedWidth(metrics::labelWidth);
-        else                                              editor->setFixedWidth(metrics::textWidth);
+        editor->setFixedWidth(pin.textShape == loom::TextShape::Label ? metrics::labelWidth
+                                                                     : metrics::textWidth);
 
         return;
     }
@@ -229,7 +229,7 @@ bool showInEditor(QWidget* editor, const loom::Value& value)
 
     if (QPlainTextEdit* box = qobject_cast<QPlainTextEdit*>(editor))
     {
-        const QString text = QString::fromStdString(loom::asString(value));
+        const QString text = toQt(loom::asString(value));
 
         if (box->toPlainText() != text) box->setPlainText(text);
         return true;
@@ -237,13 +237,13 @@ bool showInEditor(QWidget* editor, const loom::Value& value)
 
     if (QLineEdit* field = qobject_cast<QLineEdit*>(editor))
     {
-        field->setText(QString::fromStdString(loom::asString(value)));
+        field->setText(toQt(loom::asString(value)));
         return true;
     }
 
     if (QComboBox* box = qobject_cast<QComboBox*>(editor))
     {
-        const int found = box->findData(QString::fromStdString(loom::asString(value)));
+        const int found = box->findData(toQt(loom::asString(value)));
 
         // A name the list does not offer needs the whole editor built again.
         if (found < 0) return false;

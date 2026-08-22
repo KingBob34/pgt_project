@@ -19,8 +19,7 @@ namespace loom
 
     bool canHold(const std::string& pinType, const std::string& valueType)
     {
-        // The chosen variable is stored as the text of its name, and a colour
-        // as an object of channels.
+        // The chosen variable is stored as the text of its name.
         if (pinType == PinType::VariableName) return valueType == PinType::String;
 
         // Both are held as objects: a colour of channels, a passage of spans.

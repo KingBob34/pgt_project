@@ -8,9 +8,8 @@
 #include "loom/graph/catalog.h"
 #include "loom/value/inspect.h"
 
-// A handful of node types invented purely for these tests. Nothing in
-// core/runtime knows their names, which is the point: registering a new
-// type is all it takes to extend the engine.
+// Node types invented purely for these tests, registered into a catalog of
+// their own. core/runtime never names any of them.
 namespace stub
 {
     inline loom::PinSpec in(std::string name, std::string type, loom::Value defaultValue = loom::Value())

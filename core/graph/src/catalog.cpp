@@ -15,8 +15,14 @@ namespace loom
         // order rather than appearing twice.
         const auto found = types.find(key);
 
-        if (found == types.end()) added.push_back(arriving);
-        else                      std::replace(added.begin(), added.end(), found->second.get(), arriving);
+        if (found == types.end())
+        {
+            added.push_back(arriving);
+        }
+        else
+        {
+            std::replace(added.begin(), added.end(), found->second.get(), arriving);
+        }
 
         types[key] = std::move(type);
     }

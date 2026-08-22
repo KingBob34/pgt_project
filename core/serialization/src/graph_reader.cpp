@@ -136,7 +136,7 @@ namespace loom
 
             if (const Value* choices = objectGet(record, "choices"))
             {
-                for (const Value& choice : *choices) out.choices.push_back(asString(choice));
+                for (const Value* choice : listItems(*choices)) out.choices.push_back(asString(*choice));
             }
         }
 
@@ -152,21 +152,21 @@ namespace loom
                 return false;
             }
 
-            for (const Value& record : *nodes)
+            for (const Value* record : listItems(*nodes))
             {
                 NodeInstance node;
 
                 // One unreadable record is not worth abandoning the rest of the
                 // file for: the editor should still open what it can.
-                if (readNode(record, out.name, node, diagnostics)) out.nodes.push_back(node);
+                if (readNode(*record, out.name, node, diagnostics)) out.nodes.push_back(node);
             }
 
             if (const Value* connections = objectGet(document, "connections"))
             {
-                for (const Value& record : *connections)
+                for (const Value* record : listItems(*connections))
                 {
                     Connection connection;
-                    if (readConnection(record, out.name, connection, diagnostics))
+                    if (readConnection(*record, out.name, connection, diagnostics))
                     {
                         out.connections.push_back(connection);
                     }
@@ -175,17 +175,6 @@ namespace loom
 
             return true;
         }
-    }
-
-    bool readGraph(const Value& document, const NodeCatalog& catalog,
-                   Graph& out, Diagnostics& diagnostics)
-    {
-        if (!checkVersion(document, diagnostics)) return false;
-        if (!readGraphBody(document, out, diagnostics)) return false;
-
-        validate(out, catalog, diagnostics);
-
-        return true;
     }
 
     bool readProject(const Value& document, const NodeCatalog& catalog,
@@ -218,10 +207,10 @@ namespace loom
             return false;
         }
 
-        for (const Value& record : *graphs)
+        for (const Value* record : listItems(*graphs))
         {
             Graph graph;
-            if (readGraphBody(record, graph, diagnostics)) out.graphs.push_back(graph);
+            if (readGraphBody(*record, graph, diagnostics)) out.graphs.push_back(graph);
         }
 
         validate(out, catalog, diagnostics);

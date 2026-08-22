@@ -46,7 +46,7 @@ namespace loom
 
                 if (right == 0)
                 {
-                    reportError(context, displayName(), "cannot divide by zero");
+                    reportError(context, *this, "cannot divide by zero");
 
                     context.setOutput("result", 0.0);
 

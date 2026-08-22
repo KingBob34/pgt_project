@@ -15,9 +15,9 @@ namespace loom
 
     bool isNull(const Value& value) {return value.is_null();}
     bool isBool(const Value& value) {return value.is_boolean();}
+    bool isNumber(const Value& value) {return value.is_number();}
     bool isInt(const Value& value) {return value.is_number_integer();}
     bool isFloat(const Value& value) {return value.is_number_float();}
-    bool isNumber(const Value& value) {return value.is_number();}
     bool isString(const Value& value) {return value.is_string();}
     bool isList(const Value& value) {return value.is_array();}
     bool isObject(const Value& value) {return value.is_object();}
@@ -69,7 +69,7 @@ namespace loom
         return value.is_string() ? value.get<std::string>() : std::string();
     }
 
-    const Value*  objectGet(const Value& value, const std::string& key)
+    const Value* objectGet(const Value& value, const std::string& key)
     {
         if (!value.is_object()) return nullptr;
 
@@ -90,6 +90,21 @@ namespace loom
         }
 
         return keys;
+    }
+
+    Value makeObject()
+    {
+        return Value::object();
+    }
+
+    Value makeList()
+    {
+        return Value::array();
+    }
+
+    void objectSet(Value& object, const std::string& key, Value item)
+    {
+        object[key] = std::move(item);
     }
 
     std::size_t listSize(const Value& list)
@@ -114,6 +129,16 @@ namespace loom
         if (!list.is_array() || index >= list.size()) return nullptr;
 
         return &list[index];
+    }
+
+    std::vector<const Value*> listItems(const Value& list)
+    {
+        std::vector<const Value*> items;
+        if (!list.is_array()) return items;
+
+        for (const Value& item : list) items.push_back(&item);
+
+        return items;
     }
 
     void listAppend(Value& list, Value item)

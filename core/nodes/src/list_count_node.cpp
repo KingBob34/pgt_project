@@ -37,7 +37,7 @@ namespace loom
 
                 if (!isList(list))
                 {
-                    reportError(context, "List Count",
+                    reportError(context, *this,
                                 "cannot count a " + pinTypeLabel(typeName(list)));
 
                     context.setOutput("result", 0);

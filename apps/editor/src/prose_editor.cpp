@@ -1,6 +1,5 @@
 #include "prose_editor.h"
 
-#include <QAbstractTextDocumentLayout>
 #include <QComboBox>
 #include <QFontMetricsF>
 #include <QGridLayout>
@@ -17,7 +16,10 @@
 #include <QVBoxLayout>
 #include <QWidgetAction>
 
+#include "loom/qt/convert.h"
 #include "loom/value/inspect.h"
+
+using loom::qt::toQt;
 
 namespace
 {
@@ -31,8 +33,8 @@ namespace
     constexpr int kSlotColour = QTextFormat::UserProperty + 3;
 
     // Around the words on a chip, and how round its corners are.
-    constexpr double kChipPadX = 7.0;
-    constexpr double kChipRadius = 5.0;
+    constexpr double kChipPadX = 5.0;
+    constexpr double kChipRadius = 4.0;
 
     constexpr int kBandHeight = 24;
 
@@ -87,10 +89,16 @@ namespace
         void drawObject(QPainter* painter, const QRectF& rect, QTextDocument*, int,
                         const QTextFormat& format) override
         {
+            const QTextCharFormat& chars = static_cast<const QTextCharFormat&>(format);
             const QColor colour = format.property(kSlotColour).value<QColor>();
 
             painter->save();
             painter->setRenderHint(QPainter::Antialiasing, true);
+
+            // The painter arrives carrying whatever font it last had, not the
+            // one this chip was measured with, so the words would be drawn at
+            // a size the box was never sized for.
+            painter->setFont(chars.font());
 
             painter->setPen(Qt::NoPen);
             painter->setBrush(colour);
@@ -103,37 +111,6 @@ namespace
             painter->restore();
         }
     };
-
-    int channel(const loom::Value& source, const std::string& key)
-    {
-        const loom::Value* component = loom::objectGet(source, key);
-        if (component == nullptr) return 0;
-
-        const double scaled = loom::isInt(*component)
-                            ? static_cast<double>(loom::asInt(*component))
-                            : loom::asFloat(*component);
-
-        return static_cast<int>(scaled * 255.0);
-    }
-
-    // Colours are written as fractions, the way every other colour in a story
-    // file is.
-    loom::Value fromColour(const QColor& colour)
-    {
-        loom::Value stored = loom::Value::object();
-        stored["r"] = colour.redF();
-        stored["g"] = colour.greenF();
-        stored["b"] = colour.blueF();
-
-        return stored;
-    }
-
-    QColor toColour(const loom::Value& value)
-    {
-        if (!loom::isObject(value)) return QColor();
-
-        return QColor(channel(value, "r"), channel(value, "g"), channel(value, "b"));
-    }
 
     QPixmap swatchOf(const QColor& colour)
     {
@@ -487,7 +464,7 @@ void ProseEditor::setPassage(const loom::Value& passage)
 
         if (const loom::Value* font = loom::objectGet(span, "font"))
         {
-            const QString named = QString::fromStdString(loom::asString(*font));
+            const QString named = toQt(loom::asString(*font));
 
             if (!named.isEmpty()) format.setFontFamilies({ named });
         }
@@ -501,7 +478,7 @@ void ProseEditor::setPassage(const loom::Value& passage)
 
         if (const loom::Value* colour = loom::objectGet(span, "color"))
         {
-            const QColor drawn = toColour(*colour);
+            const QColor drawn = loom::qt::toColour(*colour);
 
             if (drawn.isValid()) format.setForeground(drawn);
         }
@@ -515,7 +492,7 @@ void ProseEditor::setPassage(const loom::Value& passage)
         const loom::Value* underline = loom::objectGet(span, "underline");
         if (underline != nullptr && loom::asBool(*underline)) format.setFontUnderline(true);
 
-        cursor.insertText(QString::fromStdString(loom::asString(*loom::objectGet(span, "text"))),
+        cursor.insertText(toQt(loom::asString(*loom::objectGet(span, "text"))),
                           format);
     }
 
@@ -526,7 +503,7 @@ void ProseEditor::setPassage(const loom::Value& passage)
 
 loom::Value ProseEditor::passage() const
 {
-    loom::Value spans = loom::Value::array();
+    loom::Value spans = loom::makeList();
 
     const QTextDocument* document = text->document();
 
@@ -536,8 +513,8 @@ loom::Value ProseEditor::passage() const
         // ordinary newline rather than a structure of their own.
         if (block != document->begin())
         {
-            loom::Value span = loom::Value::object();
-            span["text"] = "\n";
+            loom::Value span = loom::makeObject();
+            loom::objectSet(span, "text", "\n");
 
             loom::listAppend(spans, span);
         }
@@ -555,8 +532,8 @@ loom::Value ProseEditor::passage() const
                 // run is written out once per character it holds.
                 for (int copy = 0; copy < fragment.text().length(); ++copy)
                 {
-                    loom::Value span = loom::Value::object();
-                    span["slot"] = format.property(kSlotIndex).toInt();
+                    loom::Value span = loom::makeObject();
+                    loom::objectSet(span, "slot", format.property(kSlotIndex).toInt());
 
                     loom::listAppend(spans, span);
                 }
@@ -564,35 +541,39 @@ loom::Value ProseEditor::passage() const
                 continue;
             }
 
-            loom::Value span = loom::Value::object();
-            span["text"] = fragment.text().toStdString();
+            loom::Value span = loom::makeObject();
+            loom::objectSet(span, "text", fragment.text().toStdString());
 
             const QStringList families = format.fontFamilies().toStringList();
 
-            if (!families.isEmpty()) span["font"] = families.first().toStdString();
+            if (!families.isEmpty())
+            {
+                loom::objectSet(span, "font", families.first().toStdString());
+            }
 
             if (format.fontPointSize() > 0.0)
             {
-                span["size"] = static_cast<long long>(format.fontPointSize());
+                loom::objectSet(span, "size", static_cast<long long>(format.fontPointSize()));
             }
 
             if (format.foreground().style() != Qt::NoBrush)
             {
-                span["color"] = fromColour(format.foreground().color());
+                loom::objectSet(span, "color", loom::qt::fromColour(format.foreground().color()));
             }
 
-            if (format.fontWeight() >= QFont::Bold) span["bold"] = true;
-            if (format.fontItalic()) span["italic"] = true;
-            if (format.fontUnderline()) span["underline"] = true;
+            if (format.fontWeight() >= QFont::Bold) loom::objectSet(span, "bold", true);
+            if (format.fontItalic()) loom::objectSet(span, "italic", true);
+            if (format.fontUnderline()) loom::objectSet(span, "underline", true);
 
             loom::listAppend(spans, span);
         }
     }
 
-    loom::Value stored = loom::Value::object();
-    stored["spans"] = spans;
+    loom::Value stored = loom::makeObject();
+    loom::objectSet(stored, "spans", spans);
 
     return stored;
 }
 
 #include "prose_editor.moc"
+

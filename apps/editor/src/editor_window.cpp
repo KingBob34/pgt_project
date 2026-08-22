@@ -1,35 +1,31 @@
 #include "editor_window.h"
 
 #include <QAction>
-#include <QTimer>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QHBoxLayout>
+#include <QIcon>
 #include <QInputDialog>
-#include <QProcess>
-#include <QRegularExpression>
 #include <QKeySequence>
 #include <QListWidget>
-#include <QTabBar>
-#include <QMenuBar>
-#include <QAbstractItemView>
-#include <QFont>
-#include <QHBoxLayout>
 #include <QMenu>
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QIcon>
+#include <QMenuBar>
 #include <QPainter>
 #include <QPixmap>
 #include <QPolygonF>
+#include <QProcess>
 #include <QProxyStyle>
+#include <QPushButton>
+#include <QRegularExpression>
 #include <QStyle>
-#include <QToolBar>
-#include <QListView>
+#include <QTabBar>
 #include <QTabWidget>
+#include <QTimer>
+#include <QToolBar>
 
 #include <QtNodes/internal/NodeGraphicsObject.hpp>
 
@@ -47,22 +43,20 @@
 #include "playtest_panel.h"
 #include "value_tree.h"
 
+#include "loom/qt/convert.h"
 #include "loom/graph/validate.h"
 #include "loom/nodes/builtin.h"
 #include "loom/serialization/graph_io.h"
 #include "loom/value/inspect.h"
 #include "loom/value/parse.h"
 
+using loom::qt::toQt;
+
 namespace
 {
-    // Tabs sit against one another by default, which reads as one long bar
-    // rather than as a scene each. A background of their own is what makes
-    // them separate, and the margin is the gap between them.
-    // A tab bar slides a tab into its new place, but writes the label straight
+    // A tab bar slides a tab into its new place but writes the label straight
     // at where it is going, so the name arrives before the box it belongs to.
-    // Painting the tabs by hand would be the way to make the two travel
-    // together; taking the slide away costs a dozen lines and no one is left
-    // behind either.
+    // Taking the slide away keeps the two together.
     class InstantTabs : public QProxyStyle
     {
     public:
@@ -75,14 +69,17 @@ namespace
         }
     };
 
-    // The gap the style sheet leaves after each tab. tabRect() counts it as
-    // part of the tab, so the rename box has to give it back.
     // The narrowest the left column is worth being: both panels in it read
     // as prose.
     constexpr int kLeastSideWidth = 320;
 
+    // The gap the style sheet leaves after each tab. tabRect() counts it as
+    // part of the tab, so the rename box has to give it back.
     constexpr int kSceneTabGap = 10;
 
+    // Tabs sit against one another by default, which reads as one long bar
+    // rather than as a scene each. A background of their own is what makes
+    // them separate, and the margin is the gap between them.
     QString sceneStripStyle()
     {
         return QString("QTabBar { border: none; }"
@@ -114,10 +111,107 @@ namespace
     // tool which never returns does not hold the editor for ever.
     constexpr int kDeployTimeout = 120000;
 
+    // Where an exported game keeps Qt's plugins. Gathering them under one name
+    // is the difference between a folder of four things and a folder of eleven.
+    const char* const kRuntimeFolder = "runtime";
+
+    // Plugins for things a story never does. Left out, Qt6Network stops being
+    // pulled in with them.
+    const char* const kUnusedPlugins = "networkinformation,tls,generic,iconengines";
+
     // Where a file dialog opens when the story it is about has no path yet.
     QString storyFolder(const QString& current)
     {
         return current.isEmpty() ? QString(LOOM_STORIES_DIR) : current;
+    }
+
+    // Overwriting, because the same folder may be exported into twice.
+    bool copyOver(const QString& from, const QString& into)
+    {
+        QFile::remove(into);
+
+        return QFile::copy(from, into);
+    }
+
+    // A folder and everything under it. Plugin trees are one level deep, but
+    // nothing here depends on that.
+    bool copyTree(const QString& from, const QString& into)
+    {
+        const QDir source(from);
+
+        if (!source.exists() || !QDir().mkpath(into)) return false;
+
+        const QFileInfoList entries =
+            source.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+
+        for (const QFileInfo& entry : entries)
+        {
+            const QString target = into + "/" + entry.fileName();
+
+            if (entry.isDir())
+            {
+                if (!copyTree(entry.absoluteFilePath(), target)) return false;
+                continue;
+            }
+
+            if (!copyOver(entry.absoluteFilePath(), target)) return false;
+        }
+
+        return true;
+    }
+
+    // The libraries the editor is itself standing on. A packaged engine has
+    // them beside it and hands the game the very same ones; one running from a
+    // build tree has none, because Qt is on its PATH instead.
+    bool copyEngineRuntime(const QString& into)
+    {
+        const QDir beside(QCoreApplication::applicationDirPath());
+        const QStringList libraries = beside.entryList({ "*.dll" }, QDir::Files);
+
+        if (libraries.isEmpty() || !beside.exists(kRuntimeFolder)) return false;
+
+        for (const QString& library : libraries)
+        {
+            if (!copyOver(beside.filePath(library), into + "/" + library)) return false;
+        }
+
+        return copyTree(beside.filePath(kRuntimeFolder), into + "/" + kRuntimeFolder);
+    }
+
+    // The tool that walks a binary and fetches what it imports. Where it lives
+    // is settled when the editor is built, so it is only there on the machine
+    // that built it. Answers with what went wrong, or with nothing.
+    QString fetchQtLibraries(const QString& binary)
+    {
+        QProcess deploy;
+
+        deploy.start(LOOM_WINDEPLOYQT,
+                     { "--no-translations", "--no-system-d3d-compiler", "--no-opengl-sw",
+                       "--skip-plugin-types", kUnusedPlugins,
+                       "--plugindir", QFileInfo(binary).path() + "/" + kRuntimeFolder,
+                       binary });
+
+        if (!deploy.waitForFinished(kDeployTimeout)) return "windeployqt did not finish";
+
+        if (deploy.exitCode() != 0)
+        {
+            return QString::fromLocal8Bit(deploy.readAllStandardError()).trimmed();
+        }
+
+        return QString();
+    }
+
+    // Qt looks beside the exe for its plugins unless a qt.conf sends it
+    // somewhere else.
+    bool writeQtConf(const QString& into)
+    {
+        QFile file(into + "/qt.conf");
+
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
+
+        file.write(QByteArray("[Paths]\nPlugins = ") + kRuntimeFolder + "\n");
+
+        return true;
     }
 
     // Deployed side by side; in a build tree each target has its own directory.
@@ -523,7 +617,7 @@ void EditorWindow::renameVariable(const QString& before, const QString& after)
         node.pinValues[pin.name] = moved;
 
         logAt("  Updated " + nodeLabel(graph.name, node.id) + " in scene '" +
-              QString::fromStdString(graph.name) + "'",
+              toQt(graph.name) + "'",
               graph.name, node.id);
     });
 }
@@ -543,7 +637,7 @@ void EditorWindow::reportVariableUses(const QString& name)
         }
 
         logAt("  " + nodeLabel(graph.name, node.id) + " in scene '" +
-              QString::fromStdString(graph.name) + "'",
+              toQt(graph.name) + "'",
               graph.name, node.id, true);
     });
 }
@@ -661,7 +755,7 @@ void EditorWindow::refreshScenes()
 
     for (const loom::Graph& graph : project.graphs)
     {
-        const int tab = scenes->addTab(QString::fromStdString(graph.name));
+        const int tab = scenes->addTab(toQt(graph.name));
 
         // Where the story begins. A tab bar has one font for all of its tabs,
         // so the entry is marked in colour rather than in weight.
@@ -793,7 +887,7 @@ void EditorWindow::removeScene()
 
     refreshScenes();
 
-    log("Removed the scene '" + QString::fromStdString(gone) + "'");
+    log("Removed the scene '" + toQt(gone) + "'");
 
     reportSceneReferences(gone);
 }
@@ -812,7 +906,7 @@ void EditorWindow::renameScene(int tab)
     // comes off while the box is up, or the two names sit on one another.
     scenes->setTabText(tab, QString());
 
-    InlineEdit* box = new InlineEdit(QString::fromStdString(was),
+    InlineEdit* box = new InlineEdit(toQt(was),
                                      [this, was](const QString& typed)
                                      {
                                          takeSceneName(was, typed.toStdString());
@@ -900,10 +994,10 @@ void EditorWindow::reportSceneReferences(const std::string& name)
                 if (!loom::isString(stored.second)) continue;
                 if (loom::asString(stored.second) != name) continue;
 
-                logAt("Warning in scene '" + QString::fromStdString(graph.name) + "' at " +
+                logAt("Warning in scene '" + toQt(graph.name) + "' at " +
                       nodeLabel(graph.name, node.id) + ", pin " +
-                      QString::fromStdString(stored.first) + ": still names the scene '" +
-                      QString::fromStdString(name) + "'",
+                      toQt(stored.first) + ": still names the scene '" +
+                      toQt(name) + "'",
                       graph.name, node.id);
             }
         }
@@ -924,7 +1018,7 @@ void EditorWindow::logAt(const QString& text, const std::string& graph, loom::No
 {
     QListWidgetItem* line = log(text, fault);
 
-    line->setData(Qt::UserRole, QString::fromStdString(graph));
+    line->setData(Qt::UserRole, toQt(graph));
     line->setData(Qt::UserRole + 1, node);
 }
 
@@ -950,7 +1044,7 @@ QString EditorWindow::nodeLabel(const std::string& graph, loom::NodeId node) con
 
             const loom::NodeType* type = catalog.find(instance.type);
 
-            if (type != nullptr) return QString::fromStdString(type->displayName()) + number;
+            if (type != nullptr) return toQt(type->displayName()) + number;
         }
     }
 
@@ -979,7 +1073,7 @@ bool EditorWindow::focusNode(const std::string& graph, loom::NodeId node)
 
         if (index == project.graphs.size())
         {
-            log("There is no longer a scene called '" + QString::fromStdString(graph) + "'.", true);
+            log("There is no longer a scene called '" + toQt(graph) + "'.", true);
             return false;
         }
 
@@ -1021,9 +1115,9 @@ void EditorWindow::report(const loom::Diagnostics& diagnostics)
         QString line = fault ? "Error" : "Warning";
 
         if (entry.node != 0)    line += " at " + nodeLabel(entry.graph, entry.node);
-        if (!entry.pin.empty()) line += ", pin " + QString::fromStdString(entry.pin);
+        if (!entry.pin.empty()) line += ", pin " + toQt(entry.pin);
 
-        line += ": " + QString::fromStdString(entry.message);
+        line += ": " + toQt(entry.message);
 
         if (entry.node == 0) log(line, fault);
         else                 logAt(line, entry.graph, entry.node, fault);
@@ -1081,28 +1175,14 @@ void EditorWindow::openStory(const QString& path)
 
     if (!loom::parseJson(file.readAll().toStdString(), parsed, error))
     {
-        log(QString::fromStdString(error), true);
+        log(toQt(error), true);
         return;
     }
 
     loom::Project     opened;
     loom::Diagnostics diagnostics;
-    bool              read = false;
 
-    if (loom::objectGet(parsed, "graphs") != nullptr)
-    {
-        read = loom::readProject(parsed, catalog, opened, diagnostics);
-    }
-    else
-    {
-        // A single graph file is a project with one scene in it.
-        loom::Graph graph;
-        read = loom::readGraph(parsed, catalog, graph, diagnostics);
-
-        opened.meta  = graph.meta;
-        opened.entry = graph.name;
-        opened.graphs.push_back(graph);
-    }
+    const bool read = loom::readProject(parsed, catalog, opened, diagnostics);
 
     if (!read || diagnostics.hasErrors() || opened.graphs.empty())
     {
@@ -1203,7 +1283,7 @@ void EditorWindow::playStory()
 
     playtest->play(project);
 
-    log("Playing " + QString::fromStdString(project.entry));
+    log("Playing " + toQt(project.entry));
 }
 
 void EditorWindow::playStoryHere()
@@ -1277,9 +1357,7 @@ void EditorWindow::exportGame()
     // Named after the game, which is how it finds its story once it is running.
     const QString binary = folder.filePath(game + ".exe");
 
-    QFile::remove(binary);
-
-    if (!QFile::copy(source, binary))
+    if (!copyOver(source, binary))
     {
         log("Cannot copy the game to " + binary, true);
         return;
@@ -1287,15 +1365,24 @@ void EditorWindow::exportGame()
 
     if (!writeProjectTo(folder.filePath(game + ".loom"))) return;
 
-    // Qt's own libraries, fetched by the tool that knows which ones are needed.
-    QProcess deploy;
-    deploy.start(LOOM_WINDEPLOYQT, { "--no-translations", "--no-system-d3d-compiler",
-                                     "--no-opengl-sw", binary });
-
-    if (!deploy.waitForFinished(kDeployTimeout) || deploy.exitCode() != 0)
+    // A packaged engine gives the game the libraries it is running on itself,
+    // which are the same ones and are already to hand. Run from a build tree
+    // it has none beside it, and the Qt tool goes and fetches them.
+    if (!copyEngineRuntime(folder.absolutePath()))
     {
-        log("The Qt libraries were not copied; the game will not run elsewhere.", true);
-        log(QString::fromLocal8Bit(deploy.readAllStandardError()).trimmed(), true);
+        const QString trouble = fetchQtLibraries(binary);
+
+        if (!trouble.isEmpty())
+        {
+            log("The Qt libraries were not copied; the game will not run elsewhere.", true);
+            log(trouble, true);
+            return;
+        }
+    }
+
+    if (!writeQtConf(folder.absolutePath()))
+    {
+        log("Cannot write qt.conf; the game will not find its plugins.", true);
         return;
     }
 

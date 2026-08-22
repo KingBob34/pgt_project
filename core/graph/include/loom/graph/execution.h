@@ -58,7 +58,8 @@ namespace loom
         bool enabled = true;
     };
 
-    // Implemented by the player, by the terminal and by the test double.
+    // Implemented by the game window, by the editor's playtest panel and by
+    // the test double.
     struct Host
     {
         virtual ~Host() = default;
@@ -79,6 +80,10 @@ namespace loom
 
         virtual bool readVariable(const std::string& name, Value& out) const = 0;
         virtual void writeVariable(const std::string& name, Value value) = 0;
+
+        // A whole number between low and high, both included. A node holds no
+        // state of its own, so the run it belongs to owns the generator.
+        virtual long long randomInt(long long low, long long high) = 0;
 
         virtual Host& host() = 0;
 

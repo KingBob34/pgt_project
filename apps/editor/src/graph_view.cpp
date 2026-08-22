@@ -1,28 +1,33 @@
 #include "graph_view.h"
 
 #include <cmath>
+#include <utility>
+#include <vector>
 
 #include <QAction>
 #include <QApplication>
+#include <QClipboard>
 #include <QContextMenuEvent>
 #include <QGraphicsProxyWidget>
-#include <QLineEdit>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMenu>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
 #include <QScrollBar>
-#include <QUndoStack>
-#include <utility>
-#include <vector>
+#include <QSet>
 #include <QWheelEvent>
 
 #include <QtNodes/AbstractGraphModel>
-#include <QtNodes/UndoCommands>
-#include <QtNodes/internal/AbstractNodeGeometry.hpp>
 #include <QtNodes/BasicGraphicsScene>
 #include <QtNodes/Definitions>
+#include <QtNodes/UndoCommands>
+#include <QtNodes/internal/AbstractNodeGeometry.hpp>
 #include <QtNodes/internal/ConnectionGraphicsObject.hpp>
 #include <QtNodes/internal/NodeGraphicsObject.hpp>
+
 #include "graph_scene.h"
 #include "inline_edit.h"
 #include "move_command.h"
@@ -34,6 +39,9 @@ namespace
 {
     // What one turn of the wheel reports, in eighths of a degree.
     constexpr int kWheelNotch = 120;
+
+    // How QtNodes hands a copied piece of a graph to the clipboard.
+    const char* const kGraphMime = "application/qt-nodes-graph";
 
     // The corner that resizes a node the author may resize.
     constexpr double kGripSize = 14.0;
@@ -510,6 +518,148 @@ void GraphView::openNodeMenu(const QPoint& at, const QtNodes::ConnectionId& draf
                                   : nodeScene()->createSceneMenu(mapToScene(at));
 
     if (menu != nullptr) menu->popup(mapToGlobal(at));
+}
+
+QByteArray GraphView::withoutEntryPoints(const QByteArray& document) const
+{
+    const QJsonObject whole = QJsonDocument::fromJson(document).object();
+
+    QJsonArray keptNodes;
+    QSet<qint64> left;
+
+    for (const QJsonValue& entry : whole["nodes"].toArray())
+    {
+        const QJsonObject node = entry.toObject();
+        const std::string named =
+            node["internal-data"].toObject()["model-name"].toString().toStdString();
+
+        const loom::NodeType* type = catalog.find(named);
+
+        if (type != nullptr && type->isEntryPoint())
+        {
+            left.insert(node["id"].toInteger());
+            continue;
+        }
+
+        keptNodes.append(entry);
+    }
+
+    if (left.isEmpty()) return document;
+
+    QJsonArray keptWires;
+
+    for (const QJsonValue& entry : whole["connections"].toArray())
+    {
+        const QJsonObject wire = entry.toObject();
+
+        if (left.contains(wire["outNodeId"].toInteger())) continue;
+        if (left.contains(wire["inNodeId"].toInteger())) continue;
+
+        keptWires.append(entry);
+    }
+
+    QJsonObject trimmed = whole;
+    trimmed["nodes"] = keptNodes;
+    trimmed["connections"] = keptWires;
+
+    return QJsonDocument(trimmed).toJson();
+}
+
+bool GraphView::isEntryPoint(QtNodes::NodeId node)
+{
+    QtNodes::BasicGraphicsScene* graph = nodeScene();
+    if (graph == nullptr) return false;
+
+    const NodeAdaptor* adaptor = adaptorFor(graph->graphModel(), node);
+
+    return adaptor != nullptr && adaptor->nodeType().isEntryPoint();
+}
+
+std::vector<QtNodes::NodeGraphicsObject*> GraphView::dropEntryPoints()
+{
+    std::vector<QtNodes::NodeGraphicsObject*> dropped;
+
+    QtNodes::BasicGraphicsScene* graph = nodeScene();
+    if (graph == nullptr) return dropped;
+
+    for (QGraphicsItem* item : graph->selectedItems())
+    {
+        QtNodes::NodeGraphicsObject* object =
+            qgraphicsitem_cast<QtNodes::NodeGraphicsObject*>(item);
+
+        if (object != nullptr && isEntryPoint(object->nodeId())) dropped.push_back(object);
+    }
+
+    for (QtNodes::NodeGraphicsObject* object : dropped) object->setSelected(false);
+
+    return dropped;
+}
+
+void GraphView::onCopySelectedObjects()
+{
+    const std::vector<QtNodes::NodeGraphicsObject*> dropped = dropEntryPoints();
+
+    QtNodes::GraphicsView::onCopySelectedObjects();
+
+    // Copying is not meant to change what the author had picked out.
+    for (QtNodes::NodeGraphicsObject* object : dropped) object->setSelected(true);
+}
+
+void GraphView::onDuplicateSelectedObjects()
+{
+    const std::vector<QtNodes::NodeGraphicsObject*> dropped = dropEntryPoints();
+
+    QtNodes::BasicGraphicsScene* graph = nodeScene();
+
+    // Duplicating copies and then pastes. With nothing left to copy the paste
+    // would go ahead all the same and put back whatever the clipboard was
+    // holding, so the entry point on its own does nothing at all.
+    if (graph == nullptr || graph->selectedItems().isEmpty())
+    {
+        for (QtNodes::NodeGraphicsObject* object : dropped) object->setSelected(true);
+        return;
+    }
+
+    // The copies it makes become the selection, so nothing is put back.
+    QtNodes::GraphicsView::onDuplicateSelectedObjects();
+}
+
+void GraphView::onPasteObjects()
+{
+    QClipboard* clipboard = QApplication::clipboard();
+    const QMimeData* held = clipboard->mimeData();
+
+    if (held == nullptr || !held->hasFormat(kGraphMime))
+    {
+        QtNodes::GraphicsView::onPasteObjects();
+        return;
+    }
+
+    // What was copied by an older build, or by another window, may still carry
+    // an entry point. It is taken out of the clipboard rather than deleted
+    // afterwards, so the paste stays one step on the undo stack.
+    const QByteArray original = held->data(kGraphMime);
+    const QByteArray filtered = withoutEntryPoints(original);
+
+    if (filtered == original)
+    {
+        QtNodes::GraphicsView::onPasteObjects();
+        return;
+    }
+
+    QMimeData* trimmed = new QMimeData;
+    trimmed->setData(kGraphMime, filtered);
+    trimmed->setText(filtered);
+
+    clipboard->setMimeData(trimmed);
+
+    QtNodes::GraphicsView::onPasteObjects();
+
+    QMimeData* restored = new QMimeData;
+    restored->setData(kGraphMime, original);
+    restored->setText(original);
+
+    clipboard->setMimeData(restored);
 }
 
 void GraphView::onCutSelectedObjects()

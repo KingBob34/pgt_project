@@ -1,11 +1,19 @@
 #ifndef LOOM_EDITOR_GRAPH_VIEW_H
 #define LOOM_EDITOR_GRAPH_VIEW_H
+#include <vector>
+
+#include <QByteArray>
 #include <QPoint>
 #include <QSize>
 
 #include <QtNodes/GraphicsView>
 
 #include "loom/graph/catalog.h"
+
+namespace QtNodes
+{
+    class NodeGraphicsObject;
+}
 
 // The canvas: right button pans, left button selects, and the entry point
 // cannot be deleted.
@@ -19,6 +27,12 @@ public:
 
 public Q_SLOTS:
     void onDeleteSelectedObjects() override;
+
+    // A scene comes with its entry point and may have only the one, so it is
+    // left out of everything that would make a second.
+    void onCopySelectedObjects() override;
+    void onDuplicateSelectedObjects() override;
+    void onPasteObjects() override;
 
     // Copy, then delete what was copied.
     void onCutSelectedObjects();
@@ -37,6 +51,16 @@ private:
     // Every way a pan can end goes through here, or the hand cursor is left
     // lying on the canvas.
     void endPan();
+
+    bool isEntryPoint(QtNodes::NodeId node);
+
+    // The same document with every entry point, and every wire that reached
+    // one, left out. Handed back unchanged when there were none.
+    QByteArray withoutEntryPoints(const QByteArray& document) const;
+
+    // Takes every entry point out of the selection and hands them back, so the
+    // caller can put the author's selection the way it found it.
+    std::vector<QtNodes::NodeGraphicsObject*> dropEntryPoints();
 
     // Whether a pin's editor has the keyboard, in which case the canvas has
     // no business reading the keys it is being sent.

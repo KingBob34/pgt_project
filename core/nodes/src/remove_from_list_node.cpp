@@ -38,24 +38,10 @@ namespace loom
 
             FlowResult execute(ExecutionContext& context) const override
             {
-                const std::string named = context.inputString("variable");
+                std::string named;
+                Value       held;
 
-                Value held;
-
-                if (!context.readVariable(named, held))
-                {
-                    reportError(context, "Remove From List",
-                                "there is no variable called '" + named + "'");
-                    return FlowResult::stop();
-                }
-
-                if (!isList(held))
-                {
-                    reportError(context, "Remove From List",
-                                "'" + named + "' holds a " + pinTypeLabel(typeName(held)) +
-                                ", not a list");
-                    return FlowResult::stop();
-                }
+                if (!readListVariable(context, *this, named, held)) return FlowResult::stop();
 
                 if (!listRemoveFirst(held, context.input("value")))
                 {

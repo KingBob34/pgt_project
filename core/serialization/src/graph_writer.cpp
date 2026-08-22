@@ -1,38 +1,41 @@
 #include "loom/serialization/graph_io.h"
 
+#include "loom/value/inspect.h"
+
 namespace loom
 {
     namespace
     {
         Value writeMeta(const Meta& meta)
         {
-            Value out = Value::object();
-            out["title"] = meta.title;
-            out["author"] = meta.author;
+            Value out = makeObject();
+            objectSet(out, "title", meta.title);
+            objectSet(out, "author", meta.author);
+
             return out;
         }
 
         Value writeNode(const NodeInstance& node)
         {
-            Value out = Value::object();
-            out["id"] = node.id;
-            out["type"] = node.type;
+            Value out = makeObject();
+            objectSet(out, "id", node.id);
+            objectSet(out, "type", node.type);
 
-            Value position = Value::object();
-            position["x"] = node.position.x;
-            position["y"] = node.position.y;
-            out["position"] = position;
+            Value position = makeObject();
+            objectSet(position, "x", node.position.x);
+            objectSet(position, "y", node.position.y);
+            objectSet(out, "position", position);
 
             // Left out when it carries no information, so the common node stays
             // three lines in the file and a human can still read it.
-            if (node.extraPins != 0) out["extraPins"] = node.extraPins;
+            if (node.extraPins != 0) objectSet(out, "extraPins", node.extraPins);
 
             if (!node.pinValues.empty())
             {
-                Value values = Value::object();
-                for (const auto& entry : node.pinValues) values[entry.first] = entry.second;
+                Value values = makeObject();
+                for (const auto& entry : node.pinValues) objectSet(values, entry.first, entry.second);
 
-                out["pinValues"] = values;
+                objectSet(out, "pinValues", values);
             }
 
             return out;
@@ -40,26 +43,27 @@ namespace loom
 
         Value writeConnection(const Connection& connection)
         {
-            Value out = Value::object();
-            out["from"] = connection.from;
-            out["fromPin"] = connection.fromPin;
-            out["to"] = connection.to;
-            out["toPin"] = connection.toPin;
+            Value out = makeObject();
+            objectSet(out, "from", connection.from);
+            objectSet(out, "fromPin", connection.fromPin);
+            objectSet(out, "to", connection.to);
+            objectSet(out, "toPin", connection.toPin);
+
             return out;
         }
 
         Value writeVariable(const VariableSpec& variable)
         {
-            Value out = Value::object();
-            out["type"] = variable.type;
-            out["value"] = variable.value;
+            Value out = makeObject();
+            objectSet(out, "type", variable.type);
+            objectSet(out, "value", variable.value);
 
             if (!variable.choices.empty())
             {
-                Value choices = Value::array();
-                for (const std::string& choice : variable.choices) choices.push_back(choice);
+                Value choices = makeList();
+                for (const std::string& choice : variable.choices) listAppend(choices, choice);
 
-                out["choices"] = choices;
+                objectSet(out, "choices", choices);
             }
 
             return out;
@@ -67,49 +71,42 @@ namespace loom
 
         Value writeGraphBody(const Graph& graph)
         {
-            Value out = Value::object();
-            out["name"] = graph.name;
-            out["meta"] = writeMeta(graph.meta);
+            Value out = makeObject();
+            objectSet(out, "name", graph.name);
+            objectSet(out, "meta", writeMeta(graph.meta));
 
-            Value nodes = Value::array();
-            for (const NodeInstance& node : graph.nodes) nodes.push_back(writeNode(node));
-            out["nodes"] = nodes;
+            Value nodes = makeList();
+            for (const NodeInstance& node : graph.nodes) listAppend(nodes, writeNode(node));
+            objectSet(out, "nodes", nodes);
 
-            Value connections = Value::array();
+            Value connections = makeList();
             for (const Connection& connection : graph.connections)
             {
-                connections.push_back(writeConnection(connection));
+                listAppend(connections, writeConnection(connection));
             }
-            out["connections"] = connections;
+            objectSet(out, "connections", connections);
 
             return out;
         }
     }
 
-    Value writeGraph(const Graph& graph)
-    {
-        Value out = writeGraphBody(graph);
-        out["schemaVersion"] = kSchemaVersion;
-        return out;
-    }
-
     Value writeProject(const Project& project)
     {
-        Value graphs = Value::array();
-        for (const Graph& graph : project.graphs) graphs.push_back(writeGraphBody(graph));
+        Value graphs = makeList();
+        for (const Graph& graph : project.graphs) listAppend(graphs, writeGraphBody(graph));
 
-        Value variables = Value::object();
+        Value variables = makeObject();
         for (const auto& entry : project.variables)
         {
-            variables[entry.first] = writeVariable(entry.second);
+            objectSet(variables, entry.first, writeVariable(entry.second));
         }
 
-        Value out = Value::object();
-        out["schemaVersion"] = kSchemaVersion;
-        out["meta"] = writeMeta(project.meta);
-        out["entry"] = project.entry;
-        out["variables"] = variables;
-        out["graphs"] = graphs;
+        Value out = makeObject();
+        objectSet(out, "schemaVersion", kSchemaVersion);
+        objectSet(out, "meta", writeMeta(project.meta));
+        objectSet(out, "entry", project.entry);
+        objectSet(out, "variables", variables);
+        objectSet(out, "graphs", graphs);
 
         return out;
     }

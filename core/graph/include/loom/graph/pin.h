@@ -35,9 +35,8 @@ namespace loom
     // knows what it is asking the author for.
     namespace TextShape
     {
-        inline constexpr int Line    = 0;   // a word or a number
-        inline constexpr int Label   = 1;   // a sentence, in a small box
-        inline constexpr int Passage = 2;   // a paragraph, in a wide box
+        inline constexpr int Line  = 0;   // a word or a number
+        inline constexpr int Label = 1;   // a sentence, in a small box
     }
 
     struct PinSpec
@@ -47,7 +46,7 @@ namespace loom
         PinDirection direction = PinDirection::Input;
         std::string  type = PinType::Flow;
         Value        defaultValue;   // starting in-place value of a data input
-        int textShape = TextShape::Line;
+        int          textShape = TextShape::Line;
 
         // Names the variableName pin whose choice decides this pin's type.
         // Empty on every pin whose type is fixed.

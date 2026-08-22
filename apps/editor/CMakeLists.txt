@@ -53,6 +53,7 @@ target_compile_definitions(LoomEngine PRIVATE
 target_link_libraries(LoomEngine PRIVATE
         Qt6::Widgets
         QtNodes
+        loom_qt_common
         loom_serialization
         loom_runtime
         loom_nodes

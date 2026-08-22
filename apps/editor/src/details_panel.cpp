@@ -7,6 +7,10 @@
 #include "node_adaptor.h"
 #include "pin_editor.h"
 
+#include "loom/qt/convert.h"
+
+using loom::qt::toQt;
+
 namespace
 {
     constexpr int kParagraphHeight = 220;
@@ -93,7 +97,7 @@ void DetailsPanel::setNode(NodeAdaptor* adaptor)
 
         fields[pin.name] = made.widget;
 
-        form->addRow(QString::fromStdString(pin.label), made.widget);
+        form->addRow(toQt(pin.label), made.widget);
     }
 }
 
