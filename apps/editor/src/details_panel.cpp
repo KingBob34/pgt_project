@@ -83,6 +83,7 @@ void DetailsPanel::setNode(NodeAdaptor* adaptor)
                                                  shown->setPinValue(name, std::move(written));
                                              },
                                              shown->variableSpecs(),
+                                             shown->sceneNames(),
                                              [held = shown]
                                              {
                                                  return held.isNull() ? std::vector<ProseSlot>()

@@ -27,6 +27,10 @@ namespace loom
         // them, never computed, so no wire may reach it.
         inline constexpr const char* VariableName = "variableName";
 
+        // Names one of the story's own scenes, chosen the same way and for the
+        // same reason: a scene that is picked from a list cannot be mistyped.
+        inline constexpr const char* SceneName = "sceneName";
+
         // A pin that follows a variable nothing has been chosen for yet.
         inline constexpr const char* Unset = "unset";
     }

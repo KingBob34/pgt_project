@@ -85,6 +85,7 @@ namespace
     QString optionStyle(int fontSize)
     {
         return QString("QPushButton {"
+                       "  font-family: Georgia;"
                        "  font-size: %1pt;"
                        "  color: #1a1a1a;"
                        "  background: #f2f2f2;"
@@ -173,7 +174,7 @@ namespace
 
         card->setObjectName("panelCard");
         card->setAttribute(Qt::WA_StyledBackground, true);
-        card->setStyleSheet("#panelCard { background: white; border-radius: 6px; }");
+        card->setStyleSheet("#panelCard { background: white; color: #1a1a1a; border-radius: 6px; }");
 
         // A child of the game surface, not a window: the story stays behind it,
         // dimmed, so the player can see they are still in the same place.
@@ -236,7 +237,10 @@ void PlayerWindow::buildLayout()
     passage = new QTextEdit;
     passage->setReadOnly(true);
     passage->setFrameStyle(QFrame::NoFrame);
-    passage->setStyleSheet("QTextEdit { background: white; padding: 40px 72px; }");
+    // A surface that states its background and not its ink leaves the words to
+    // the desktop theme, which on a dark one hands back white -- on white.
+    passage->setStyleSheet("QTextEdit { background: white; color: #1a1a1a;"
+                           "            padding: 40px 72px; }");
 
     // Stacked, not side by side: an option is often a whole sentence, and a
     // row of them squeezes every button down to nothing.
@@ -247,11 +251,10 @@ void PlayerWindow::buildLayout()
     choices = new QWidget;
     choices->setLayout(choiceRow);
 
-    // Named, because a bare QWidget selector would repaint every button in here
-    // as well and leave them white on white.
+    // Named, or the selector would reach every button inside it as well.
     choices->setObjectName("choiceBar");
     choices->setAttribute(Qt::WA_StyledBackground, true);
-    choices->setStyleSheet("#choiceBar { background: white; }");
+    choices->setStyleSheet("#choiceBar { background: white; color: #1a1a1a; }");
 
     QWidget* centre = new QWidget;
 
@@ -264,7 +267,7 @@ void PlayerWindow::buildLayout()
 
     centre->setObjectName("gameSurface");
     centre->setAttribute(Qt::WA_StyledBackground, true);
-    centre->setStyleSheet("#gameSurface { background: white; }");
+    centre->setStyleSheet("#gameSurface { background: white; color: #1a1a1a; }");
 
     buildStatus(centre);
     buildSettings(centre);
@@ -307,7 +310,7 @@ QWidget* PlayerWindow::buildSystemBar()
     // Named, or a bare QWidget selector would repaint every button in here.
     systemBar->setObjectName("systemBar");
     systemBar->setAttribute(Qt::WA_StyledBackground, true);
-    systemBar->setStyleSheet("#systemBar { background: white; }");
+    systemBar->setStyleSheet("#systemBar { background: white; color: #1a1a1a; }");
 
     return systemBar;
 }

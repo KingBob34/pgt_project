@@ -8,7 +8,8 @@
 //
 //  Inputs
 //      in            Flow
-//      scene         String    the graph to continue in
+//      scene         Scene     the graph to continue in, picked from the story's
+//                              own; no wire reaches it, so it cannot be computed
 //==============================================================================
 
 namespace loom
@@ -25,7 +26,7 @@ namespace loom
             std::vector<PinSpec> pins(int) const override
             {
                 return { flowIn(),
-                         dataIn("scene", "Scene", PinType::String, Value("")) };
+                         sceneIn("scene", "Scene") };
             }
 
             FlowResult execute(ExecutionContext& context) const override

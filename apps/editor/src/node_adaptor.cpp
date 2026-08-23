@@ -50,6 +50,16 @@ namespace
         return out;
     }
 
+    // Whether a pin carries a connector. A variable and a scene are picked
+    // from a list and a passage is written in place, so none of the three is
+    // ever reached by a wire.
+    bool takesWire(const loom::PinSpec& pin)
+    {
+        return pin.type != loom::PinType::VariableName
+            && pin.type != loom::PinType::SceneName
+            && pin.type != loom::PinType::Prose;
+    }
+
     // The pins on a side that carry a connector. A pin the author fills in on
     // the node itself has a row but no port, so it is no part of the numbering
     // the canvas uses.
@@ -59,10 +69,7 @@ namespace
 
         for (const loom::PinSpec& pin : pins)
         {
-            if (pin.type != loom::PinType::VariableName && pin.type != loom::PinType::Prose)
-            {
-                out.push_back(pin);
-            }
+            if (takesWire(pin)) out.push_back(pin);
         }
 
         return out;
@@ -93,8 +100,10 @@ namespace
 
 NodeAdaptor::NodeAdaptor(const loom::NodeType& nodeType,
                          const std::map<std::string, loom::VariableSpec>& variableSpecs,
+                         const std::vector<std::string>& sceneNames,
                          GraphOwner graphOwner)
-    : type(nodeType), variables(variableSpecs), owner(std::move(graphOwner))
+    : type(nodeType), variables(variableSpecs), scenes(sceneNames),
+      owner(std::move(graphOwner))
 {
     data.type = nodeType.name();
     data.extraPins = nodeType.minExtraPins();
@@ -107,6 +116,7 @@ void NodeAdaptor::refreshPins()
     inputs.clear();
     outputs.clear();
     inputPorts.clear();
+    inputRows.clear();
 
     for (const loom::PinSpec& pin : type.pins(data.extraPins))
     {
@@ -120,14 +130,29 @@ void NodeAdaptor::refreshPins()
             continue;
         }
 
-        // A variable is chosen from a list and a passage is written in place,
-        // so neither row is given a connector.
-        if (pin.type != loom::PinType::VariableName && pin.type != loom::PinType::Prose)
-        {
-            inputPorts.push_back(inputs.size());
-        }
+        if (takesWire(pin)) inputPorts.push_back(inputs.size());
 
         inputs.push_back(pin);
+    }
+
+    // A flow input carries a connector and nothing else, so where the pin under
+    // it is a name picked from a list -- one line tall, and with no connector of
+    // its own to collide with -- the two share a row rather than the flow input
+    // holding an empty one open. Anything taller keeps its own row, or the
+    // connector would be dragged down to the middle of it.
+    std::size_t row = 0;
+
+    inputRows.assign(inputs.size(), 0);
+
+    for (std::size_t at = 0; at < inputs.size(); ++at)
+    {
+        inputRows[at] = row;
+
+        const bool picked = at + 1 < inputs.size()
+                         && (inputs[at + 1].type == loom::PinType::VariableName
+                          || inputs[at + 1].type == loom::PinType::SceneName);
+
+        if (inputs[at].type != loom::PinType::Flow || !picked) ++row;
     }
 
     // A frame has no rows at all. Its title and its size still live on pins,
@@ -138,6 +163,7 @@ void NodeAdaptor::refreshPins()
     {
         inputs.clear();
         inputPorts.clear();
+        inputRows.clear();
         outputs.clear();
     }
 
@@ -295,7 +321,9 @@ std::size_t NodeAdaptor::rowOfPort(QtNodes::PortType portType, QtNodes::PortInde
 
     if (portType != QtNodes::PortType::In || at >= inputPorts.size()) return at;
 
-    return inputPorts[at];
+    const std::size_t pin = inputPorts[at];
+
+    return pin < inputRows.size() ? inputRows[pin] : pin;
 }
 
 void NodeAdaptor::setInstance(const loom::NodeInstance& instance)
@@ -513,8 +541,18 @@ void NodeAdaptor::rebuildEditors()
         delete item;
     }
 
-    for (const loom::PinSpec& pin : editablePins())
+    const std::vector<loom::PinSpec>& shown = editablePins();
+
+    for (std::size_t at = 0; at < shown.size(); ++at)
     {
+        const loom::PinSpec& pin = shown[at];
+
+        // The pin under this one owns the row they share, and draws it.
+        if (&shown == &inputs && at + 1 < inputRows.size() && inputRows[at + 1] == inputRows[at])
+        {
+            continue;
+        }
+
         // A chosen variable decides another pin's type, so the ports repaint.
         const bool governs = pin.type == loom::PinType::VariableName;
 
@@ -528,6 +566,7 @@ void NodeAdaptor::rebuildEditors()
                                                  if (governs) Q_EMIT requestNodeUpdate();
                                              },
                                              variables,
+                                             scenes,
                                              [this] { return valueSlots(); });
 
         QWidget* editor = made.widget;
@@ -755,16 +794,16 @@ NodeAdaptor* adaptorFor(QtNodes::AbstractGraphModel& model, QtNodes::NodeId node
 
 std::shared_ptr<QtNodes::NodeDelegateModelRegistry> makeRegistry(
     const loom::NodeCatalog& catalog, const std::map<std::string, loom::VariableSpec>& variableSpecs,
-    GraphOwner graphOwner)
+    const std::vector<std::string>& sceneNames, GraphOwner graphOwner)
 {
     auto registry = std::make_shared<QtNodes::NodeDelegateModelRegistry>();
 
     for (const loom::NodeType* type : catalog.all())
     {
         registry->registerModel<NodeAdaptor>(
-            [type, &variableSpecs, graphOwner]
+            [type, &variableSpecs, &sceneNames, graphOwner]
             {
-                return std::make_unique<NodeAdaptor>(*type, variableSpecs, graphOwner);
+                return std::make_unique<NodeAdaptor>(*type, variableSpecs, sceneNames, graphOwner);
             },
             toQt(type->category()));
     }

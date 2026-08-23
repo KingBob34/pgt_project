@@ -1,5 +1,6 @@
 #include "loom/graph/validate.h"
 
+#include <functional>
 #include <map>
 #include <set>
 
@@ -68,10 +69,16 @@ namespace loom
             }
         }
 
-        // Every pin that names a global must name one the story declares. The
-        // pin's type says which pins those are, so no node type is named here.
-        void checkVariableReferences(const Project& project, const NodeCatalog& catalog,
-                                     Diagnostics& out)
+        // Every pin that picks a name out of a list must pick one that is still
+        // there. The pin's type says which pins those are, so no node type is
+        // named here.
+        //
+        // Both faults are warnings: the story still opens, and the author can
+        // see on the canvas which node to mend.
+        void checkNamedReferences(const Project& project, const NodeCatalog& catalog,
+                                  const std::string& pinType, const std::string& what,
+                                  const std::function<bool(const std::string&)>& declared,
+                                  Diagnostics& out)
         {
             for (const Graph& graph : project.graphs)
             {
@@ -82,7 +89,7 @@ namespace loom
 
                     for (const PinSpec& pin : type->pins(node.extraPins))
                     {
-                        if (pin.type != PinType::VariableName) continue;
+                        if (pin.type != pinType) continue;
 
                         const auto stored = node.pinValues.find(pin.name);
 
@@ -92,14 +99,13 @@ namespace loom
 
                         if (named.empty())
                         {
-                            out.warning("no variable is chosen", graph.name, node.id, pin.name);
+                            out.warning("no " + what + " is chosen", graph.name, node.id, pin.name);
                             continue;
                         }
 
-                        // A warning, so the story still opens and can be fixed.
-                        if (declaredTypeAt(project.variables, named).empty())
+                        if (!declared(named))
                         {
-                            out.warning("no variable called '" + named + "' is declared",
+                            out.warning("there is no " + what + " called '" + named + "'",
                                         graph.name, node.id, pin.name);
                         }
                     }
@@ -289,7 +295,19 @@ namespace loom
             out.error("the entry graph '" + project.entry + "' does not exist", project.entry);
         }
 
-        checkVariableReferences(project, catalog, out);
+        checkNamedReferences(project, catalog, PinType::VariableName, "variable",
+                             [&project](const std::string& named)
+                             {
+                                 return !declaredTypeAt(project.variables, named).empty();
+                             },
+                             out);
+
+        checkNamedReferences(project, catalog, PinType::SceneName, "scene",
+                             [&project](const std::string& named)
+                             {
+                                 return project.findGraph(named) != nullptr;
+                             },
+                             out);
         checkFollowingWires(project, catalog, out);
     }
 }

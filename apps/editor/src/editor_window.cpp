@@ -1,6 +1,7 @@
 #include "editor_window.h"
 
 #include <QAction>
+#include <QCloseEvent>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDockWidget>
@@ -13,6 +14,7 @@
 #include <QKeySequence>
 #include <QListWidget>
 #include <QMenu>
+#include <QMessageBox>
 #include <QMenuBar>
 #include <QPainter>
 #include <QPixmap>
@@ -72,6 +74,11 @@ namespace
     // The narrowest the left column is worth being: both panels in it read
     // as prose.
     constexpr int kLeastSideWidth = 320;
+
+    // What the variable panel's three columns need side by side, and the room
+    // it opens with so a value has somewhere to be read.
+    constexpr int kLeastPanelWidth = 320;
+    constexpr int kPanelWidth = 360;
 
     // The gap the style sheet leaves after each tab. tabRect() counts it as
     // part of the tab, so the rename box has to give it back.
@@ -214,13 +221,18 @@ namespace
         return true;
     }
 
-    // Deployed side by side; in a build tree each target has its own directory.
+    // In a package the game sits under runtime/ with the rest of the engine's
+    // own parts, so that the only thing at the top of the folder an author can
+    // double-click is the editor. In a build tree each target has its own
+    // directory instead.
     QString findGame()
     {
         const QString name = "LoomGame.exe";
         const QString here = QCoreApplication::applicationDirPath();
 
-        for (const QString& candidate : { here + "/" + name, here + "/../player/" + name })
+        for (const QString& candidate : { here + "/" + kRuntimeFolder + "/" + name,
+                                          here + "/" + name,
+                                          here + "/../player/" + name })
         {
             if (QFileInfo::exists(candidate)) return QFileInfo(candidate).absoluteFilePath();
         }
@@ -300,7 +312,7 @@ EditorWindow::~EditorWindow()
 
 void EditorWindow::buildCanvas()
 {
-    registry = makeRegistry(catalog, variableSpecs, [this] { return model.get(); });
+    registry = makeRegistry(catalog, variableSpecs, sceneNames, [this] { return model.get(); });
     model    = std::make_unique<GraphModel>(registry);
 
     scene = new GraphScene(*model, catalog, this);
@@ -552,6 +564,11 @@ void EditorWindow::syncVariableNames()
 
     offeredMenu = std::move(menu);
 
+    refreshNodeEditors();
+}
+
+void EditorWindow::refreshNodeEditors()
+{
     for (QtNodes::NodeId id : model->allNodeIds())
     {
         if (NodeAdaptor* node = model->delegateModel<NodeAdaptor>(id)) node->refreshEditors();
@@ -683,7 +700,12 @@ void EditorWindow::buildDocks()
     playtestDock->setMinimumWidth(kLeastSideWidth);
     output->setMinimumWidth(kLeastSideWidth);
 
-    resizeDocks({ playtestDock, output, inspector }, { kLeastSideWidth, kLeastSideWidth, 300 },
+    // Narrower than this the variable panel's three columns no longer fit
+    // side by side, and the tree starts carrying the name column off its own
+    // left edge.
+    inspector->setMinimumWidth(kLeastPanelWidth);
+
+    resizeDocks({ playtestDock, output, inspector }, { kLeastSideWidth, kLeastSideWidth, kPanelWidth },
                 Qt::Horizontal);
 
     // Closing a dock hides it, and these are the only way to ask for it back.
@@ -753,8 +775,16 @@ void EditorWindow::refreshScenes()
 
     while (scenes->count() > 0) scenes->removeTab(0);
 
+    // The nodes read this while they build their menus, so it is filled in the
+    // same pass that draws the tabs and can never disagree with them.
+    const std::vector<std::string> before = std::move(sceneNames);
+
+    sceneNames.clear();
+
     for (const loom::Graph& graph : project.graphs)
     {
+        sceneNames.push_back(graph.name);
+
         const int tab = scenes->addTab(toQt(graph.name));
 
         // Where the story begins. A tab bar has one font for all of its tabs,
@@ -767,6 +797,8 @@ void EditorWindow::refreshScenes()
     scenes->setCurrentIndex(static_cast<int>(editing));
 
     rebuilding = false;
+
+    if (sceneNames != before) refreshNodeEditors();
 }
 
 void EditorWindow::showScene(const loom::Graph& graph)
@@ -989,14 +1021,23 @@ void EditorWindow::reportSceneReferences(const std::string& name)
     {
         for (const loom::NodeInstance& node : graph.nodes)
         {
-            for (const auto& stored : node.pinValues)
+            const loom::NodeType* type = catalog.find(node.type);
+            if (type == nullptr) continue;
+
+            // Only the pins that pick a scene out of a list. Any other string
+            // that happens to read the same is not a reference to anything.
+            for (const loom::PinSpec& pin : type->pins(node.extraPins))
             {
-                if (!loom::isString(stored.second)) continue;
-                if (loom::asString(stored.second) != name) continue;
+                if (pin.type != loom::PinType::SceneName) continue;
+
+                const auto stored = node.pinValues.find(pin.name);
+
+                if (stored == node.pinValues.end()) continue;
+                if (loom::asString(stored->second) != name) continue;
 
                 logAt("Warning in scene '" + toQt(graph.name) + "' at " +
                       nodeLabel(graph.name, node.id) + ", pin " +
-                      toQt(stored.first) + ": still names the scene '" +
+                      toQt(pin.name) + ": still names the scene '" +
                       toQt(name) + "'",
                       graph.name, node.id);
             }
@@ -1150,6 +1191,8 @@ void EditorWindow::newStory()
 
     setStoryPath(QString());
     refreshScenes();
+
+    saved = snapshot();
 }
 
 void EditorWindow::chooseStory()
@@ -1210,6 +1253,8 @@ void EditorWindow::openStory(const QString& path)
 
     report(diagnostics);
     log("Opened " + path);
+
+    saved = snapshot();
 }
 
 bool EditorWindow::saveStory()
@@ -1262,7 +1307,43 @@ bool EditorWindow::writeStory(const QString& path)
     report(diagnostics);
     log("Saved " + path);
 
+    saved = snapshot();
+
     return true;
+}
+
+std::string EditorWindow::snapshot()
+{
+    gatherProject();
+
+    return loom::writeJson(loom::writeProject(project));
+}
+
+bool EditorWindow::mayDiscard()
+{
+    if (snapshot() == saved) return true;
+
+    QMessageBox asking(this);
+    asking.setIcon(QMessageBox::Warning);
+    asking.setWindowTitle("Loom");
+    asking.setText("This story has changes that have not been saved.");
+    asking.setInformativeText("Save them before closing?");
+    asking.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+    asking.setDefaultButton(QMessageBox::Save);
+
+    const int answer = asking.exec();
+
+    // Saving may still be called off at the file dialog, and then the window
+    // stays open too.
+    if (answer == QMessageBox::Save) return saveStory();
+
+    return answer == QMessageBox::Discard;
+}
+
+void EditorWindow::closeEvent(QCloseEvent* event)
+{
+    if (mayDiscard()) event->accept();
+    else               event->ignore();
 }
 
 void EditorWindow::setStoryPath(const QString& path)

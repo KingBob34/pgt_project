@@ -46,6 +46,9 @@ public:
 
     void openStory(const QString& path);
 
+protected:
+    void closeEvent(QCloseEvent* event) override;
+
 private:
     void buildMenus();
     void buildCanvas();
@@ -129,14 +132,28 @@ private:
     std::string uniqueSceneName(const std::string& wanted) const;
     void reportSceneReferences(const std::string& name);
 
+    // Every node builds its menus from the story's own names, so all of them
+    // are rebuilt when one arrives or leaves.
+    void refreshNodeEditors();
+
+    // The whole story as it would be written out this moment.
+    std::string snapshot();
+
+    // Asks only when there is something to lose, and answers false when the
+    // author chose to stay.
+    bool mayDiscard();
+
     loom::NodeCatalog catalog;
 
     // Read by the painters every time the canvas redraws, so it outlives the
     // scene it colours.
     CanvasFaults faults;
 
-    // Declared first: the registry hands a reference to it to every node.
+    // Declared first: the registry hands a reference to each of these to every
+    // node, so a pin that picks a name out of a list is always offering the
+    // list as it stands.
     std::map<std::string, loom::VariableSpec> variableSpecs;
+    std::vector<std::string>                  sceneNames;
 
     // What the nodes are currently offering, each name with its type, to tell a
     // stale menu from a fresh one.
@@ -173,6 +190,11 @@ private:
     std::size_t   editing = 0;
 
     QString storyPath;
+
+    // The story as it stood when it was last written or opened. What is in
+    // front of the author is compared against this, which catches every way a
+    // change can be made rather than the ways someone thought to watch for.
+    std::string saved;
 };
 
 #endif //LOOM_EDITOR_EDITOR_WINDOW_H

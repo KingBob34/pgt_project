@@ -2,6 +2,7 @@
 #define LOOM_EDITOR_PIN_EDITOR_H
 #include <functional>
 #include <map>
+#include <vector>
 #include <string>
 
 #include "prose_editor.h"
@@ -23,10 +24,12 @@ struct PinEditor
 };
 
 // The editor for one pin. A null widget means the type has none. The declared
-// variables are what a variableName pin offers and the slots are what a prose
-// pin may quote; every other type ignores both.
+// variables are what a variableName pin offers, the scene names are what a
+// sceneName pin offers, and the slots are what a prose pin may quote; every
+// other type ignores all three.
 PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed,
                         const std::map<std::string, loom::VariableSpec>& variables = {},
+                        const std::vector<std::string>& scenes = {},
                         ProseSlots offer = {});
 
 // Narrows an editor to the width a node on the canvas has room for.

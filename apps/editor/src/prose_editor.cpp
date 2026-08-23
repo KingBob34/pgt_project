@@ -33,14 +33,22 @@ namespace
     constexpr int kSlotColour = QTextFormat::UserProperty + 3;
 
     // Around the words on a chip, and how round its corners are.
-    constexpr double kChipPadX = 5.0;
+    constexpr double kChipPadX = 3.0;
     constexpr double kChipRadius = 4.0;
+
+    // A chip is drawn a shade smaller than the words around it, so its box
+    // fits inside the line instead of prising it open. This is only how the
+    // chip looks here: the value it stands for reaches the page at whatever
+    // size the author gave the passage.
+    constexpr double kChipTextScale = 0.8;
 
     constexpr int kBandHeight = 24;
 
     // What an untouched passage is written in. The band opens showing these,
     // so choosing what is already there is never a silent no-op.
-    const char* const kDefaultFamily = "Segoe UI";
+    // Georgia was drawn for reading on a screen and ships with Windows, so a
+    // passage looks the same on the machine the story is played on.
+    const char* const kDefaultFamily = "Georgia";
     constexpr int kDefaultSize = 16;
 
     const char* const kFamilies[] = {
@@ -51,18 +59,133 @@ namespace
 
     const int kSizes[] = { 10, 12, 14, 16, 18, 20, 22, 26, 32, 40, 56, 72 };
 
-    // Two rows of eight, greys along the top and hues below.
+    // Two rows of eight. No greys: black and white change places between this
+    // box and the page, and a grey has no partner to change places with.
     const char* const kSwatches[] = {
-        "#000000", "#3f3f3f", "#6e6e6e", "#9d9d9d", "#c8c8c8", "#e8e8e8", "#ffffff", "#7a4b1e",
-        "#c0392b", "#e8663d", "#e0a020", "#3f9a4f", "#2f8fa8", "#2f5fd0", "#7d4fc0", "#c04f92"
+        "#000000", "#ffffff", "#c0392b", "#e8663d", "#e0a020", "#c9a227", "#7fae3a", "#3f9a4f",
+        "#2fa88f", "#2f8fa8", "#3a6fd8", "#2f5fd0", "#7d4fc0", "#a94fc0", "#c04f92", "#8b5a2b"
     };
+
+    // The editor is dark and the page a player reads is white, so a passage
+    // written in black shows white here and arrives black there. Every other
+    // colour reads the same on both, and swapping twice gives back what went
+    // in, so one function serves both directions.
+    QColor swapped(const QColor& colour)
+    {
+        if (colour == QColor(Qt::black)) return QColor(Qt::white);
+        if (colour == QColor(Qt::white)) return QColor(Qt::black);
+
+        return colour;
+    }
 
     constexpr int kSwatchSize = 18;
     constexpr int kSwatchColumns = 8;
 
+    // The look on a span, written the same way whether the span holds words or
+    // stands for a pin: a quoted value takes the styling around it into the
+    // game, even though the chip on the canvas keeps its own colour.
+    void styleOnto(loom::Value& span, const QTextCharFormat& format)
+    {
+        const QStringList families = format.fontFamilies().toStringList();
+
+        if (!families.isEmpty())
+        {
+            loom::objectSet(span, "font", families.first().toStdString());
+        }
+
+        if (format.fontPointSize() > 0.0)
+        {
+            loom::objectSet(span, "size", static_cast<long long>(format.fontPointSize()));
+        }
+
+        if (format.foreground().style() != Qt::NoBrush)
+        {
+            loom::objectSet(span, "color",
+                            loom::qt::fromColour(swapped(format.foreground().color())));
+        }
+
+        if (format.fontWeight() >= QFont::Bold) loom::objectSet(span, "bold", true);
+        if (format.fontItalic()) loom::objectSet(span, "italic", true);
+        if (format.fontUnderline()) loom::objectSet(span, "underline", true);
+    }
+
+    // The other way round: the look a span was written with, put back on a
+    // format. Reading and writing are kept next to each other so a key added
+    // to one is not forgotten by the other.
+    QTextCharFormat styleFrom(const loom::Value& span)
+    {
+        QTextCharFormat format;
+
+        if (const loom::Value* font = loom::objectGet(span, "font"))
+        {
+            const QString named = toQt(loom::asString(*font));
+
+            if (!named.isEmpty()) format.setFontFamilies({ named });
+        }
+
+        if (const loom::Value* points = loom::objectGet(span, "size"))
+        {
+            const int wanted = static_cast<int>(loom::asInt(*points));
+
+            if (wanted > 0) format.setFontPointSize(wanted);
+        }
+
+        if (const loom::Value* colour = loom::objectGet(span, "color"))
+        {
+            const QColor drawn = loom::qt::toColour(*colour);
+
+            if (drawn.isValid()) format.setForeground(swapped(drawn));
+        }
+
+        const loom::Value* bold = loom::objectGet(span, "bold");
+        if (bold != nullptr && loom::asBool(*bold)) format.setFontWeight(QFont::Bold);
+
+        const loom::Value* italic = loom::objectGet(span, "italic");
+        if (italic != nullptr && loom::asBool(*italic)) format.setFontItalic(true);
+
+        const loom::Value* underline = loom::objectGet(span, "underline");
+        if (underline != nullptr && loom::asBool(*underline)) format.setFontUnderline(true);
+
+        return format;
+    }
+
     QString labelOf(const QTextFormat& format)
     {
         return format.property(kSlotLabel).toString();
+    }
+
+    // The font a chip is written in: the document's, with whatever this run
+    // says about itself laid over it. Measuring and drawing both work it out
+    // this way, or the box comes out sized for one font and filled with
+    // another -- a format on its own does not know the document's default.
+    QFont fontOf(QTextDocument* document, const QTextFormat& format)
+    {
+        QFont font = document != nullptr ? document->defaultFont() : QFont();
+
+        const QTextCharFormat& chars = static_cast<const QTextCharFormat&>(format);
+        const QStringList families = chars.fontFamilies().toStringList();
+
+        if (!families.isEmpty()) font.setFamily(families.first());
+
+        if (chars.fontPointSize() > 0.0) font.setPointSizeF(chars.fontPointSize());
+
+        if (chars.hasProperty(QTextFormat::FontWeight))
+        {
+            font.setWeight(QFont::Weight(chars.fontWeight()));
+        }
+
+        font.setItalic(chars.fontItalic());
+
+        return font;
+    }
+
+    // The same font, taken down enough to leave a margin inside the box.
+    QFont chipFontOf(QTextDocument* document, const QTextFormat& format)
+    {
+        QFont font = fontOf(document, format);
+        font.setPointSizeF(font.pointSizeF() * kChipTextScale);
+
+        return font;
     }
 
     // Draws the chips. Qt will not take a handler without a metaobject, which
@@ -73,40 +196,45 @@ namespace
         Q_INTERFACES(QTextObjectInterface)
 
     public:
-        QSizeF intrinsicSize(QTextDocument*, int, const QTextFormat& format) override
+        QSizeF intrinsicSize(QTextDocument* document, int, const QTextFormat& format) override
         {
-            const QTextCharFormat& chars = static_cast<const QTextCharFormat&>(format);
-            const QFontMetricsF metrics(chars.font());
+            const QFontMetricsF around(fontOf(document, format));
+            const QFontMetricsF inside(chipFontOf(document, format));
 
-            // An inline object is set with its foot on the baseline, so a
-            // chip as tall as the whole font would reach above the line and
-            // push the whole line down. The ascent is exactly the room the
-            // text beside it already takes.
-            return QSizeF(metrics.horizontalAdvance(labelOf(format)) + 2 * kChipPadX,
-                          metrics.ascent());
+            // An inline object stands with its foot on the baseline, so asking
+            // for anything past the ascent lifts the chip off the bottom of the
+            // line and prises the line open above it by the same amount. The
+            // ascent is the whole of the room there is.
+            return QSizeF(inside.horizontalAdvance(labelOf(format)) + 2 * kChipPadX,
+                          around.ascent());
         }
 
-        void drawObject(QPainter* painter, const QRectF& rect, QTextDocument*, int,
+        void drawObject(QPainter* painter, const QRectF& rect, QTextDocument* document, int,
                         const QTextFormat& format) override
         {
-            const QTextCharFormat& chars = static_cast<const QTextCharFormat&>(format);
             const QColor colour = format.property(kSlotColour).value<QColor>();
 
             painter->save();
             painter->setRenderHint(QPainter::Antialiasing, true);
 
-            // The painter arrives carrying whatever font it last had, not the
-            // one this chip was measured with, so the words would be drawn at
-            // a size the box was never sized for.
-            painter->setFont(chars.font());
+            // The painter arrives carrying whatever font it last had, which is
+            // not the one the box was measured with.
+            painter->setFont(chipFontOf(document, format));
+
+            // Only the ascent was reserved, so the line is not prised open, but
+            // painting is not held to that rectangle: reaching down to where
+            // the words around it end seats the chip on the line instead of
+            // leaving it hanging off the baseline.
+            const QFontMetricsF around(fontOf(document, format));
+            const QRectF box = rect.adjusted(0.0, 0.0, 0.0, around.descent());
 
             painter->setPen(Qt::NoPen);
             painter->setBrush(colour);
-            painter->drawRoundedRect(rect, kChipRadius, kChipRadius);
+            painter->drawRoundedRect(box, kChipRadius, kChipRadius);
 
-            // Black or white, whichever the chip colour can be read against.
+            // Middled in the box, which the smaller font leaves room for.
             painter->setPen(colour.lightness() < 140 ? Qt::white : Qt::black);
-            painter->drawText(rect, Qt::AlignCenter, labelOf(format));
+            painter->drawText(box, Qt::AlignCenter, labelOf(format));
 
             painter->restore();
         }
@@ -126,6 +254,11 @@ ProseEditor::ProseEditor(ProseSlots slotSource, QWidget* parent)
 {
     text = new QTextEdit(this);
     text->setAcceptRichText(false);
+
+    // The page the player will read, so that unstyled words look here the way
+    // they will look there. Left to the desktop theme the two disagree, and a
+    // dark one makes black text invisible on one side or the other.
+    text->setStyleSheet("QTextEdit { background: #1e1e20; color: #ececec; }");
     text->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     text->setTabChangesFocus(true);
 
@@ -362,8 +495,10 @@ void ProseEditor::followCursor()
     italicButton->setChecked(format.fontItalic());
     underlineButton->setChecked(format.fontUnderline());
 
-    inked = format.foreground().style() == Qt::NoBrush ? QColor(Qt::black)
-                                                       : format.foreground().color();
+    inked = format.foreground().style() == Qt::NoBrush
+          ? QColor(Qt::black)
+          : swapped(format.foreground().color());
+
     colourButton->setIcon(swatchOf(inked));
 
     syncing = false;
@@ -399,21 +534,30 @@ void ProseEditor::applySize(int points)
 
 void ProseEditor::applyColour(const QColor& colour)
 {
+    // Everything outside here speaks of the colour the story will carry. The
+    // document is the one place shown the other one.
     inked = colour;
     colourButton->setIcon(swatchOf(colour));
 
-    restyle([colour](QTextCharFormat& format) { format.setForeground(colour); });
+    const QColor drawn = swapped(colour);
+
+    restyle([drawn](QTextCharFormat& format) { format.setForeground(drawn); });
 }
 
 void ProseEditor::insertSlot(const ProseSlot& slot)
 {
-    QTextCharFormat format;
+    QTextCursor cursor = working();
+
+    // The look of the words it is dropped among, so a chip in small text is a
+    // small chip. Left bare it would be measured against the document's own
+    // font instead, and in a passage written smaller than that it would stand
+    // taller than the line and prise it open.
+    QTextCharFormat format = cursor.charFormat();
     format.setObjectType(kSlotObject);
     format.setProperty(kSlotIndex, slot.index);
     format.setProperty(kSlotLabel, slot.label);
     format.setProperty(kSlotColour, slot.colour);
 
-    QTextCursor cursor = working();
     cursor.insertText(QString(QChar::ObjectReplacementCharacter), format);
 
     text->setTextCursor(cursor);
@@ -450,7 +594,7 @@ void ProseEditor::setPassage(const loom::Value& passage)
                 if (known.index == wanted) chip = known;
             }
 
-            QTextCharFormat format;
+            QTextCharFormat format = styleFrom(span);
             format.setObjectType(kSlotObject);
             format.setProperty(kSlotIndex, chip.index);
             format.setProperty(kSlotLabel, chip.label);
@@ -460,40 +604,8 @@ void ProseEditor::setPassage(const loom::Value& passage)
             continue;
         }
 
-        QTextCharFormat format;
-
-        if (const loom::Value* font = loom::objectGet(span, "font"))
-        {
-            const QString named = toQt(loom::asString(*font));
-
-            if (!named.isEmpty()) format.setFontFamilies({ named });
-        }
-
-        if (const loom::Value* points = loom::objectGet(span, "size"))
-        {
-            const int wanted = static_cast<int>(loom::asInt(*points));
-
-            if (wanted > 0) format.setFontPointSize(wanted);
-        }
-
-        if (const loom::Value* colour = loom::objectGet(span, "color"))
-        {
-            const QColor drawn = loom::qt::toColour(*colour);
-
-            if (drawn.isValid()) format.setForeground(drawn);
-        }
-
-        const loom::Value* bold = loom::objectGet(span, "bold");
-        if (bold != nullptr && loom::asBool(*bold)) format.setFontWeight(QFont::Bold);
-
-        const loom::Value* italic = loom::objectGet(span, "italic");
-        if (italic != nullptr && loom::asBool(*italic)) format.setFontItalic(true);
-
-        const loom::Value* underline = loom::objectGet(span, "underline");
-        if (underline != nullptr && loom::asBool(*underline)) format.setFontUnderline(true);
-
         cursor.insertText(toQt(loom::asString(*loom::objectGet(span, "text"))),
-                          format);
+                          styleFrom(span));
     }
 
     loading = false;
@@ -534,6 +646,7 @@ loom::Value ProseEditor::passage() const
                 {
                     loom::Value span = loom::makeObject();
                     loom::objectSet(span, "slot", format.property(kSlotIndex).toInt());
+                    styleOnto(span, format);
 
                     loom::listAppend(spans, span);
                 }
@@ -543,27 +656,7 @@ loom::Value ProseEditor::passage() const
 
             loom::Value span = loom::makeObject();
             loom::objectSet(span, "text", fragment.text().toStdString());
-
-            const QStringList families = format.fontFamilies().toStringList();
-
-            if (!families.isEmpty())
-            {
-                loom::objectSet(span, "font", families.first().toStdString());
-            }
-
-            if (format.fontPointSize() > 0.0)
-            {
-                loom::objectSet(span, "size", static_cast<long long>(format.fontPointSize()));
-            }
-
-            if (format.foreground().style() != Qt::NoBrush)
-            {
-                loom::objectSet(span, "color", loom::qt::fromColour(format.foreground().color()));
-            }
-
-            if (format.fontWeight() >= QFont::Bold) loom::objectSet(span, "bold", true);
-            if (format.fontItalic()) loom::objectSet(span, "italic", true);
-            if (format.fontUnderline()) loom::objectSet(span, "underline", true);
+            styleOnto(span, format);
 
             loom::listAppend(spans, span);
         }

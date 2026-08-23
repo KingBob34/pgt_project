@@ -7,7 +7,7 @@ namespace loom
         if (from == PinType::Flow || to == PinType::Flow) return from == to;
 
         // Both tested before Any, which would otherwise let anything reach one.
-        if (to == PinType::VariableName) return false;
+        if (to == PinType::VariableName || to == PinType::SceneName) return false;
         if (from == PinType::Unset || to == PinType::Unset) return false;
 
         // Any takes anything in and hands it on only to another Any.
@@ -19,8 +19,9 @@ namespace loom
 
     bool canHold(const std::string& pinType, const std::string& valueType)
     {
-        // The chosen variable is stored as the text of its name.
+        // What was chosen is stored as the text of its name.
         if (pinType == PinType::VariableName) return valueType == PinType::String;
+        if (pinType == PinType::SceneName) return valueType == PinType::String;
 
         // Both are held as objects: a colour of channels, a passage of spans.
         if (pinType == PinType::Color) return valueType == PinType::Any;
@@ -41,6 +42,7 @@ namespace loom
         if (type == PinType::List) return "List";
         if (type == PinType::Prose) return "Prose";
         if (type == PinType::VariableName) return "Variable";
+        if (type == PinType::SceneName) return "Scene";
         if (type == PinType::Unset) return "None";
 
         return type;

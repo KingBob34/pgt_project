@@ -16,12 +16,6 @@
           "toPin": "in"
         },
         {
-          "from": 4,
-          "fromPin": "value",
-          "to": 3,
-          "toPin": "value"
-        },
-        {
           "from": 5,
           "fromPin": "value",
           "to": 6,
@@ -79,44 +73,30 @@
           "type": "sceneStart"
         },
         {
+          "extraPins": 1,
           "id": 2,
           "pinValues": {
             "textIn": {
               "spans": [
                 {
-                  "text": "The guard blocks the gate. His eyes go to your purse."
+                  "text": "The guard blocks the gate"
+                },
+                {
+                  "color": {
+                    "b": 0.125490203499794,
+                    "g": 0.6274510025978088,
+                    "r": 0.8784313797950745
+                  },
+                  "text": ". His eyes go to your purse."
                 }
               ]
             }
           },
           "position": {
-            "x": 460.0,
-            "y": 0.0
+            "x": 435.0,
+            "y": -120.0
           },
-          "type": "showText",
-          "extraPins": 1
-        },
-        {
-          "id": 3,
-          "pinValues": {
-            "name": "gold"
-          },
-          "position": {
-            "x": 555.0,
-            "y": 495.0
-          },
-          "type": "setVariable"
-        },
-        {
-          "id": 4,
-          "pinValues": {
-            "value": 25
-          },
-          "position": {
-            "x": 315.0,
-            "y": 765.0
-          },
-          "type": "integerValue"
+          "type": "showText"
         },
         {
           "id": 5,
@@ -162,6 +142,7 @@
           "type": "showChoices"
         },
         {
+          "extraPins": 1,
           "id": 10,
           "pinValues": {
             "textIn": {
@@ -176,10 +157,10 @@
             "x": 2430.0,
             "y": -200.0
           },
-          "type": "showText",
-          "extraPins": 1
+          "type": "showText"
         },
         {
+          "extraPins": 1,
           "id": 11,
           "pinValues": {
             "textIn": {
@@ -194,8 +175,7 @@
             "x": 2430.0,
             "y": 240.0
           },
-          "type": "showText",
-          "extraPins": 1
+          "type": "showText"
         },
         {
           "id": 16,
@@ -218,14 +198,6 @@
             "y": 270.0
           },
           "type": "end"
-        },
-        {
-          "id": 19,
-          "position": {
-            "x": 990.0,
-            "y": 285.0
-          },
-          "type": "integerValue"
         }
       ]
     }

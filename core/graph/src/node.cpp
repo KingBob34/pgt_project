@@ -10,8 +10,10 @@ namespace loom
 
         for (const PinSpec& pin : type.pins(type.minExtraPins()))
         {
-            // A variable is chosen from a list, so no wire reaches that pin.
-            if (pin.direction != side || pin.type == PinType::VariableName) continue;
+            // A variable and a scene are both chosen from a list, so no wire
+            // reaches either.
+            if (pin.direction != side) continue;
+            if (pin.type == PinType::VariableName || pin.type == PinType::SceneName) continue;
 
             // A pin typed by a variable nobody has chosen yet carries something
             // unknown rather than nothing, so it is offered to any wire but a

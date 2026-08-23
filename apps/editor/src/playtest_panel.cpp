@@ -16,6 +16,7 @@ namespace
     // canvas and never gets the width a reader would.
     const char* const kOptionStyle =
         "QPushButton {"
+        "  font-family: Georgia;"
         "  color: #1a1a1a;"
         "  background: #f2f2f2;"
         "  border: 1px solid #b4b4b4;"
@@ -35,7 +36,9 @@ PlaytestPanel::PlaytestPanel(const loom::NodeCatalog& nodeCatalog, QWidget* pare
     passage = new QTextEdit;
     passage->setReadOnly(true);
     passage->setFrameStyle(QFrame::NoFrame);
-    passage->setStyleSheet("QTextEdit { background: white; padding: 16px; }");
+    // Stated, not left to the desktop theme: a dark one paints white on white.
+    passage->setStyleSheet("QTextEdit { background: white; color: #1a1a1a;"
+                           "            padding: 16px; }");
 
     choiceRow = new QVBoxLayout;
     choiceRow->setContentsMargins(16, 8, 16, 16);
@@ -44,10 +47,10 @@ PlaytestPanel::PlaytestPanel(const loom::NodeCatalog& nodeCatalog, QWidget* pare
     choices = new QWidget;
     choices->setLayout(choiceRow);
 
-    // Named, or a bare QWidget selector would repaint every button in here.
+    // Named, or the selector would reach every button inside it as well.
     choices->setObjectName("choiceBar");
     choices->setAttribute(Qt::WA_StyledBackground, true);
-    choices->setStyleSheet("#choiceBar { background: white; }");
+    choices->setStyleSheet("#choiceBar { background: white; color: #1a1a1a; }");
 
     QVBoxLayout* column = new QVBoxLayout(this);
     column->setContentsMargins(0, 0, 0, 0);

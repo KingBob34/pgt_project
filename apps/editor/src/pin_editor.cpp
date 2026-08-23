@@ -100,7 +100,11 @@ namespace
         const QString chosen = toQt(loom::asString(value));
 
         QComboBox* box = new QComboBox;
-        box->addItem(QString(), QString());
+
+        // Nothing picked yet shows as an empty box rather than as an empty row
+        // in the list: a blank is the state a new node starts in, not one of
+        // the things there are to choose.
+        box->setPlaceholderText(QString());
 
         // Every declared variable and every field nested in one, so a node can
         // reach into a group without a walk of its own.
@@ -114,7 +118,35 @@ namespace
 
         if (!chosen.isEmpty() && box->findData(chosen) < 0) box->addItem(chosen + " (missing)", chosen);
 
-        box->setCurrentIndex(std::max(0, box->findData(chosen)));
+        box->setCurrentIndex(box->findData(chosen));
+
+        QObject::connect(box, &QComboBox::currentIndexChanged, box, [box, changed](int)
+        {
+            changed(box->currentData().toString().toStdString());
+        });
+
+        return { box, 1 };
+    }
+
+    // A name out of a list, so a scene the story does not have cannot be typed
+    // by accident. One that has since been deleted is still shown, so the
+    // author can see which node is left pointing at nothing.
+    PinEditor makeScene(const loom::Value& value, const PinChanged& changed,
+                        const std::vector<std::string>& scenes)
+    {
+        const QString chosen = toQt(loom::asString(value));
+
+        QComboBox* box = new QComboBox;
+        box->setPlaceholderText(QString());
+
+        for (const std::string& scene : scenes) box->addItem(toQt(scene), toQt(scene));
+
+        if (!chosen.isEmpty() && box->findData(chosen) < 0)
+        {
+            box->addItem(chosen + " (missing)", chosen);
+        }
+
+        box->setCurrentIndex(box->findData(chosen));
 
         QObject::connect(box, &QComboBox::currentIndexChanged, box, [box, changed](int)
         {
@@ -155,9 +187,11 @@ namespace
 
 PinEditor makePinEditor(const loom::PinSpec& pin, const loom::Value& value, PinChanged changed,
                         const std::map<std::string, loom::VariableSpec>& variables,
+                        const std::vector<std::string>& scenes,
                         ProseSlots offer)
 {
     if (pin.type == loom::PinType::VariableName) return makeVariable(value, changed, variables);
+    if (pin.type == loom::PinType::SceneName) return makeScene(value, changed, scenes);
     if (pin.type == loom::PinType::Prose) return makeProse(value, changed, std::move(offer));
 
     const auto factory = editableTypes().find(pin.type);
@@ -171,7 +205,7 @@ void fitToNode(QWidget* editor, const loom::PinSpec& pin)
 {
     if (editor == nullptr) return;
 
-    if (pin.type == loom::PinType::VariableName)
+    if (pin.type == loom::PinType::VariableName || pin.type == loom::PinType::SceneName)
     {
         editor->setFixedWidth(metrics::variableWidth);
         return;

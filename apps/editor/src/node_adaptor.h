@@ -32,6 +32,7 @@ public:
     // The declared variables outlive every node on the canvas.
     NodeAdaptor(const loom::NodeType& nodeType,
                 const std::map<std::string, loom::VariableSpec>& variableSpecs,
+                const std::vector<std::string>& sceneNames,
                 GraphOwner graphOwner);
 
     QString name()    const override;
@@ -70,6 +71,9 @@ public:
     const loom::NodeInstance& instance() const { return data; }
 
     const std::map<std::string, loom::VariableSpec>& variableSpecs() const { return variables; }
+
+    // The story's own scenes, for the pins that name one.
+    const std::vector<std::string>& sceneNames() const { return scenes; }
 
     // What a pin carries once the variable it follows has been chosen.
     std::string resolvedType(const loom::PinSpec& pin) const;
@@ -157,12 +161,17 @@ private:
     loom::NodeInstance    data;
 
     const std::map<std::string, loom::VariableSpec>& variables;
+    const std::vector<std::string>&                  scenes;
 
     std::vector<loom::PinSpec> inputs;
     std::vector<loom::PinSpec> outputs;
 
     // Which of the inputs carry a port, in port order.
     std::vector<std::size_t> inputPorts;
+
+    // The row each input pin is drawn on. A flow input has no editor, so
+    // rather than leaving a blank row it stands beside the pin below it.
+    std::vector<std::size_t> inputRows;
 
     std::vector<int>                rowHeights;
     QPointer<QWidget>               body;
@@ -179,7 +188,7 @@ private:
 // One registry entry per node type, grouped by the category the node declares.
 std::shared_ptr<QtNodes::NodeDelegateModelRegistry> makeRegistry(
     const loom::NodeCatalog& catalog, const std::map<std::string, loom::VariableSpec>& variableSpecs,
-    GraphOwner graphOwner);
+    const std::vector<std::string>& sceneNames, GraphOwner graphOwner);
 
 // The adaptor behind a node id. Null when the model is not one of ours, which
 // the geometry and the painters all have to ask about.

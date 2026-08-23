@@ -57,6 +57,10 @@ namespace
             in("amount", loom::PinType::Int),
             out("out", loom::PinType::Flow) }));
 
+        catalog.add(std::make_unique<FakeNode>("leave", std::vector<loom::PinSpec>{
+            in("in", loom::PinType::Flow),
+            in("scene", loom::PinType::SceneName) }));
+
         return catalog;
     }
 
@@ -197,4 +201,58 @@ TEST_CASE("an unfinished graph produces warnings, not errors", "[graph][validate
     REQUIRE_FALSE(diagnostics.hasErrors());
     REQUIRE(mentions(diagnostics, "goes nowhere"));
     REQUIRE(mentions(diagnostics, "never runs"));
+}
+
+TEST_CASE("a pin that names a scene must name one the story has", "[graph][validate]")
+{
+    const loom::NodeCatalog catalog = makeCatalog();
+
+    loom::NodeInstance leave;
+    leave.id = 2;
+    leave.type = "leave";
+
+    loom::Graph gate;
+    gate.name = "gate";
+    gate.nodes = { node(1, "start"), leave };
+    gate.connections = { { 1, "out", 2, "in" } };
+
+    loom::Project project;
+    project.entry = "gate";
+    project.graphs = { gate };
+
+    SECTION("a scene that was deleted from under it")
+    {
+        project.graphs.front().nodes.back().pinValues["scene"] = "village";
+
+        loom::Diagnostics diagnostics;
+        loom::validate(project, catalog, diagnostics);
+
+        // A warning, not an error: the story still opens so it can be mended.
+        REQUIRE_FALSE(diagnostics.hasErrors());
+        REQUIRE(mentions(diagnostics, "there is no scene called 'village'"));
+    }
+
+    SECTION("no scene chosen yet")
+    {
+        loom::Diagnostics diagnostics;
+        loom::validate(project, catalog, diagnostics);
+
+        REQUIRE(mentions(diagnostics, "no scene is chosen"));
+    }
+
+    SECTION("a scene the story really has")
+    {
+        loom::Graph village;
+        village.name = "village";
+        village.nodes = { node(1, "start") };
+
+        project.graphs.push_back(village);
+        project.graphs.front().nodes.back().pinValues["scene"] = "village";
+
+        loom::Diagnostics diagnostics;
+        loom::validate(project, catalog, diagnostics);
+
+        REQUIRE_FALSE(mentions(diagnostics, "there is no scene"));
+        REQUIRE_FALSE(mentions(diagnostics, "no scene is chosen"));
+    }
 }

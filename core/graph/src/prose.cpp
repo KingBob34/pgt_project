@@ -60,22 +60,19 @@ namespace loom
             TextRun run;
             int     slot = 0;
 
-            if (isSlot(span, slot))
-            {
-                run.text = slotText ? slotText(slot) : std::string();
-            }
-            else
-            {
-                run.text = stringAt(span, kText);
-                run.font = stringAt(span, kFont);
+            // What the run says comes from the pin or from the author; how it
+            // looks is written the same way either way.
+            run.text = isSlot(span, slot) ? (slotText ? slotText(slot) : std::string())
+                                          : stringAt(span, kText);
 
-                if (const Value* size = objectGet(span, kSize)) run.size = asInt(*size);
-                if (const Value* color = objectGet(span, kColor)) run.color = *color;
+            run.font = stringAt(span, kFont);
 
-                run.bold      = flagAt(span, kBold);
-                run.italic    = flagAt(span, kItalic);
-                run.underline = flagAt(span, kUnderline);
-            }
+            if (const Value* size = objectGet(span, kSize)) run.size = asInt(*size);
+            if (const Value* color = objectGet(span, kColor)) run.color = *color;
+
+            run.bold      = flagAt(span, kBold);
+            run.italic    = flagAt(span, kItalic);
+            run.underline = flagAt(span, kUnderline);
 
             made.push_back(run);
         }

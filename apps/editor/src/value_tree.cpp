@@ -25,9 +25,11 @@ using loom::qt::toQt;
 namespace
 {
     constexpr int kIndent = 12;
-    constexpr int kNameWidth = 150;
+
+    // The two fixed columns; the value column is whatever is left over.
+    constexpr int kNameWidth = 96;
     constexpr int kTypeWidth = 96;
-    constexpr int kNarrowestColumn = 64;
+    constexpr int kNarrowestColumn = 48;
 
     // A list is indexed from zero, but the panel is not the file and the
     // author is not a programmer: rows are counted the way people count.
@@ -141,15 +143,23 @@ ValueTree::ValueTree(QWidget* parent)
     tree->setIndentation(kIndent);
     tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-    // Every divider drags, and the value column takes up whatever is left. A
-    // stretched section has no edge to take hold of, so making one of the first
-    // two stretch would leave its divider dead and move the other one twice.
+    // The value column takes up whatever is left, and both dividers still drag
+    // because the two columns beside them are the ones being resized.
+    //
+    // Stretch, rather than setStretchLastSection: that one will not take the
+    // last column below a hundred pixels whatever it is told, so the three
+    // together outgrow a narrow panel and the name column is carried off the
+    // left edge.
     QHeaderView* header = tree->header();
     header->setMinimumSectionSize(kNarrowestColumn);
+
+    // A stretched column will not go below the default section size either, so
+    // that has to come down with the minimum or the three still outgrow a
+    // narrow panel.
+    header->setDefaultSectionSize(kNarrowestColumn);
     header->setSectionResizeMode(0, QHeaderView::Interactive);
     header->setSectionResizeMode(1, QHeaderView::Interactive);
-    header->setSectionResizeMode(2, QHeaderView::Interactive);
-    header->setStretchLastSection(true);
+    header->setSectionResizeMode(2, QHeaderView::Stretch);
     header->resizeSection(0, kNameWidth);
     header->resizeSection(1, kTypeWidth);
 
@@ -394,6 +404,12 @@ void ValueTree::showValue(QTreeWidgetItem* row, const std::string& type)
         row->setData(0, Qt::UserRole, asText(written));
         Q_EMIT changed();
     });
+
+    // A spin box asks for room to show its widest possible number. Left to
+    // insist on it, the tree grows past the panel and the name column is
+    // carried off the edge.
+    made.widget->setMinimumWidth(kNarrowestColumn);
+    made.widget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
 
     tree->setItemWidget(row, 2, made.widget);
 }

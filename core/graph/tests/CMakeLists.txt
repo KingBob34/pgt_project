@@ -3,6 +3,7 @@ add_executable(loom_graph_tests
         following_test.cpp
         landing_test.cpp
         paths_test.cpp
+        prose_test.cpp
         validate_test.cpp
 )
 

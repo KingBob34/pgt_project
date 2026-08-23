@@ -40,6 +40,12 @@ namespace loom
                  PinType::VariableName, Value("") };
     }
 
+    PinSpec sceneIn(std::string name, std::string label)
+    {
+        return { std::move(name), std::move(label), PinDirection::Input,
+                 PinType::SceneName, Value("") };
+    }
+
     PinSpec followsIn(std::string name, std::string label, std::string follows)
     {
         return { std::move(name), std::move(label), PinDirection::Input,

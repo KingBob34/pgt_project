@@ -25,8 +25,9 @@ namespace loom
     // Part of the shape of a resizable node. Kept in the file, never shown.
     PinSpec sizeIn(std::string name, int start);
 
-    // An input naming one of the story's declared globals.
+    // Inputs naming one of the story's declared globals, and one of its scenes.
     PinSpec variableIn(std::string name, std::string label);
+    PinSpec sceneIn(std::string name, std::string label);
 
     // Pins whose type is that of the variable chosen on the 'follows' pin.
     PinSpec followsIn (std::string name, std::string label, std::string follows);
