@@ -26,7 +26,7 @@ struct ProseSlot
     QColor  colour;
 };
 
-// What slots the node offers at the moment the author opens the Insert menu.
+// What slots the node offers at the moment the author opens the Insert list.
 // Asked for afresh each time, so rewiring a pin is reflected without the
 // editor being rebuilt.
 using ProseSlots = std::function<std::vector<ProseSlot>()>;
@@ -51,7 +51,6 @@ private:
     QWidget*     buildBand();
     QMenu*       buildSwatches();
     QToolButton* buildWeight(QWidget* band, const QString& mark, const QString& hint);
-    void         fillSlotMenu(QMenu* menu);
 
     void applyFont(const QString& chosen);
     void applySize(int points);

@@ -87,6 +87,10 @@ public:
         Q_EMIT requestNodeUpdate();
     }
 
+    // The Any inputs a passage quotes name its chips. Redraw just those chips
+    // when a wire changes, without replacing their controls.
+    void refreshProse();
+
     // Everything except id and position, which stay with QtNodes.
     void setInstance(const loom::NodeInstance& instance);
 

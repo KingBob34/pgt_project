@@ -1,0 +1,1098 @@
+{
+  "entry": "scene",
+  "graphs": [
+    {
+      "connections": [
+        {
+          "from": 1,
+          "fromPin": "out",
+          "to": 2,
+          "toPin": "in"
+        },
+        {
+          "from": 2,
+          "fromPin": "out",
+          "to": 3,
+          "toPin": "in"
+        },
+        {
+          "from": 3,
+          "fromPin": "chosen0",
+          "to": 4,
+          "toPin": "in"
+        },
+        {
+          "from": 4,
+          "fromPin": "out",
+          "to": 5,
+          "toPin": "in"
+        },
+        {
+          "from": 5,
+          "fromPin": "chosen0",
+          "to": 6,
+          "toPin": "in"
+        },
+        {
+          "from": 5,
+          "fromPin": "chosen1",
+          "to": 53,
+          "toPin": "in"
+        },
+        {
+          "from": 5,
+          "fromPin": "chosen2",
+          "to": 55,
+          "toPin": "in"
+        },
+        {
+          "from": 6,
+          "fromPin": "out",
+          "to": 7,
+          "toPin": "in"
+        },
+        {
+          "from": 7,
+          "fromPin": "chosen0",
+          "to": 8,
+          "toPin": "in"
+        },
+        {
+          "from": 7,
+          "fromPin": "chosen1",
+          "to": 25,
+          "toPin": "in"
+        },
+        {
+          "from": 7,
+          "fromPin": "chosen2",
+          "to": 27,
+          "toPin": "in"
+        },
+        {
+          "from": 8,
+          "fromPin": "out",
+          "to": 9,
+          "toPin": "in"
+        },
+        {
+          "from": 9,
+          "fromPin": "chosen0",
+          "to": 11,
+          "toPin": "in"
+        },
+        {
+          "from": 9,
+          "fromPin": "chosen1",
+          "to": 13,
+          "toPin": "in"
+        },
+        {
+          "from": 11,
+          "fromPin": "out",
+          "to": 12,
+          "toPin": "in"
+        },
+        {
+          "from": 13,
+          "fromPin": "out",
+          "to": 14,
+          "toPin": "in"
+        },
+        {
+          "from": 14,
+          "fromPin": "chosen0",
+          "to": 15,
+          "toPin": "in"
+        },
+        {
+          "from": 15,
+          "fromPin": "out",
+          "to": 16,
+          "toPin": "in"
+        },
+        {
+          "from": 16,
+          "fromPin": "chosen0",
+          "to": 17,
+          "toPin": "in"
+        },
+        {
+          "from": 16,
+          "fromPin": "chosen1",
+          "to": 18,
+          "toPin": "in"
+        },
+        {
+          "from": 17,
+          "fromPin": "out",
+          "to": 20,
+          "toPin": "in"
+        },
+        {
+          "from": 18,
+          "fromPin": "out",
+          "to": 19,
+          "toPin": "in"
+        },
+        {
+          "from": 20,
+          "fromPin": "chosen0",
+          "to": 21,
+          "toPin": "in"
+        },
+        {
+          "from": 20,
+          "fromPin": "chosen1",
+          "to": 23,
+          "toPin": "in"
+        },
+        {
+          "from": 21,
+          "fromPin": "out",
+          "to": 22,
+          "toPin": "in"
+        },
+        {
+          "from": 23,
+          "fromPin": "out",
+          "to": 24,
+          "toPin": "in"
+        },
+        {
+          "from": 25,
+          "fromPin": "out",
+          "to": 26,
+          "toPin": "in"
+        },
+        {
+          "from": 27,
+          "fromPin": "out",
+          "to": 28,
+          "toPin": "in"
+        },
+        {
+          "from": 28,
+          "fromPin": "chosen0",
+          "to": 15,
+          "toPin": "in"
+        },
+        {
+          "from": 28,
+          "fromPin": "chosen1",
+          "to": 32,
+          "toPin": "in"
+        },
+        {
+          "from": 32,
+          "fromPin": "out",
+          "to": 34,
+          "toPin": "in"
+        },
+        {
+          "from": 34,
+          "fromPin": "chosen0",
+          "to": 37,
+          "toPin": "in"
+        },
+        {
+          "from": 34,
+          "fromPin": "chosen1",
+          "to": 46,
+          "toPin": "in"
+        },
+        {
+          "from": 35,
+          "fromPin": "value",
+          "to": 32,
+          "toPin": "value0"
+        },
+        {
+          "from": 37,
+          "fromPin": "out",
+          "to": 38,
+          "toPin": "in"
+        },
+        {
+          "from": 39,
+          "fromPin": "value",
+          "to": 40,
+          "toPin": "left"
+        },
+        {
+          "from": 40,
+          "fromPin": "result",
+          "to": 42,
+          "toPin": "left"
+        },
+        {
+          "from": 41,
+          "fromPin": "value",
+          "to": 40,
+          "toPin": "right"
+        },
+        {
+          "from": 42,
+          "fromPin": "result",
+          "to": 34,
+          "toPin": "enabled1"
+        },
+        {
+          "from": 43,
+          "fromPin": "result",
+          "to": 42,
+          "toPin": "right"
+        },
+        {
+          "from": 44,
+          "fromPin": "value",
+          "to": 43,
+          "toPin": "list"
+        },
+        {
+          "from": 45,
+          "fromPin": "value",
+          "to": 43,
+          "toPin": "value"
+        },
+        {
+          "from": 46,
+          "fromPin": "out",
+          "to": 49,
+          "toPin": "in"
+        },
+        {
+          "from": 47,
+          "fromPin": "value",
+          "to": 48,
+          "toPin": "left"
+        },
+        {
+          "from": 48,
+          "fromPin": "result",
+          "to": 46,
+          "toPin": "value"
+        },
+        {
+          "from": 49,
+          "fromPin": "out",
+          "to": 50,
+          "toPin": "in"
+        },
+        {
+          "from": 50,
+          "fromPin": "chosen0",
+          "to": 51,
+          "toPin": "in"
+        },
+        {
+          "from": 51,
+          "fromPin": "out",
+          "to": 52,
+          "toPin": "in"
+        },
+        {
+          "from": 52,
+          "fromPin": "chosen0",
+          "to": 17,
+          "toPin": "in"
+        },
+        {
+          "from": 52,
+          "fromPin": "chosen1",
+          "to": 18,
+          "toPin": "in"
+        },
+        {
+          "from": 53,
+          "fromPin": "out",
+          "to": 54,
+          "toPin": "in"
+        },
+        {
+          "from": 55,
+          "fromPin": "out",
+          "to": 28,
+          "toPin": "in"
+        },
+        {
+          "from": 56,
+          "fromPin": "value",
+          "to": 49,
+          "toPin": "value0"
+        }
+      ],
+      "meta": {
+        "author": "",
+        "title": ""
+      },
+      "name": "scene",
+      "nodes": [
+        {
+          "id": 1,
+          "position": {
+            "x": -150.0,
+            "y": 300.0
+          },
+          "type": "sceneStart"
+        },
+        {
+          "extraPins": 1,
+          "id": 2,
+          "pinValues": {
+            "height": 332,
+            "textIn": {
+              "spans": [
+                {
+                  "bold": true,
+                  "size": 22,
+                  "text": "Kolb & the Dragon"
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "Kolb was a brave Nord warrior. One day his Chief asked Kolb to slay an evil dragon that threatened their village. "
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "\"Go through the mountain pass, Kolb\", his Chief said. "
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "\"You will find the Dragon on the other side.\""
+                }
+              ]
+            },
+            "width": 813
+          },
+          "position": {
+            "x": 225.0,
+            "y": 285.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 1,
+          "id": 3,
+          "pinValues": {
+            "option0": "Turn to next page"
+          },
+          "position": {
+            "x": 1245.0,
+            "y": 345.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 4,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Kolb took his favorite axe and shield and walked to the pass, where he found a cold cave, a windy cave, and a narrow trail."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 1785.0,
+            "y": 330.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 3,
+          "id": 5,
+          "pinValues": {
+            "option0": "Enter the cold cave",
+            "option1": "Enter the windy cave",
+            "option2": "Walk up the trail"
+          },
+          "position": {
+            "x": 2715.0,
+            "y": 330.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 6,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Kolb stepped into the frozen cave, but his Nord blood kept him warm. A smelly tunnel climbed ahead of him, and wind howled from another to his left. A ladder was nearby as well."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 3300.0,
+            "y": -450.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 3,
+          "id": 7,
+          "pinValues": {
+            "option0": "Take the smelly tunnel",
+            "option1": "Take the windy tunnel",
+            "option2": "Climb the ladder"
+          },
+          "position": {
+            "x": 4350.0,
+            "y": -450.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 8,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Following the stench, Kolb found a filthy orc! The orc snarled and charged Kolb with his spiked club."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 5100.0,
+            "y": -1065.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 2,
+          "id": 9,
+          "pinValues": {
+            "option0": "Raise Shield",
+            "option1": "Swing Axe"
+          },
+          "position": {
+            "x": 5970.0,
+            "y": -1080.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 11,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "The orc cackled as his club splintered Kolb's shield and smashed into his face. There Kolb died, and the orc had soup from his bones."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 6600.0,
+            "y": -1305.0
+          },
+          "type": "showText"
+        },
+        {
+          "id": 12,
+          "pinValues": {
+            "text": "The End"
+          },
+          "position": {
+            "x": 7575.0,
+            "y": -1140.0
+          },
+          "type": "end"
+        },
+        {
+          "extraPins": 1,
+          "id": 13,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Before the orc could strike, Kolb swung his mighty axe. The orc's head and club fell uselessly to the floor."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 6585.0,
+            "y": -765.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 1,
+          "id": 14,
+          "pinValues": {
+            "option0": "Turn to next page"
+          },
+          "position": {
+            "x": 7530.0,
+            "y": -705.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 15,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Kolb stepped onto a rocky hill. He could see the dragon sleeping below, and a tavern off a road nearby."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 8640.0,
+            "y": -135.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 2,
+          "id": 16,
+          "pinValues": {
+            "option0": "Climb down",
+            "option1": "Visit tavern"
+          },
+          "position": {
+            "x": 13845.0,
+            "y": 135.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 17,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Kolb found the lair where the dragon slept, tendrils of smoke wafting from it's nostrils. The air made Kolb's eyes sting, and he nearly slipped on the bones of men, picked clean. The beast lay on its side, the throat and belly both waiting targets."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 15405.0,
+            "y": 390.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 1,
+          "id": 18,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Kolb stopped at the tavern to rest before fighting the dragon. High elves ran the tavern, however, and poisoned his mead so they could steal his gold."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 15330.0,
+            "y": 1185.0
+          },
+          "type": "showText"
+        },
+        {
+          "id": 19,
+          "pinValues": {
+            "text": "The End"
+          },
+          "position": {
+            "x": 16215.0,
+            "y": 1335.0
+          },
+          "type": "end"
+        },
+        {
+          "extraPins": 2,
+          "id": 20,
+          "pinValues": {
+            "option0": "Strike the Neck",
+            "option1": "Strike the Belly"
+          },
+          "position": {
+            "x": 16395.0,
+            "y": 270.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 21,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "The head of the axe lodged itself in the tough, scaly neck of the beast. It wailed and thrashed, but Kolb held on and eventually sawed through the neck, killing the beast. Kolb returned home victorious, and his village was never bothered by the dragon again."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 17115.0,
+            "y": -90.0
+          },
+          "type": "showText"
+        },
+        {
+          "id": 22,
+          "pinValues": {
+            "text": "THE END"
+          },
+          "position": {
+            "x": 18015.0,
+            "y": 90.0
+          },
+          "type": "end"
+        },
+        {
+          "extraPins": 1,
+          "id": 23,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Kolb crept towards the belly of the beast, but no sooner had he taken his eyes off the head of the beast than it snapped him up and ate him whole, axe and all."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 17130.0,
+            "y": 480.0
+          },
+          "type": "showText"
+        },
+        {
+          "id": 24,
+          "pinValues": {
+            "text": "THE END"
+          },
+          "position": {
+            "x": 17985.0,
+            "y": 630.0
+          },
+          "type": "end"
+        },
+        {
+          "extraPins": 1,
+          "id": 25,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "A strong gust of wind blew Kolb's torch out, and knocked him into a pit where split his head and died."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 5100.0,
+            "y": -495.0
+          },
+          "type": "showText"
+        },
+        {
+          "id": 26,
+          "pinValues": {
+            "text": "THE END"
+          },
+          "position": {
+            "x": 5955.0,
+            "y": -465.0
+          },
+          "type": "end"
+        },
+        {
+          "extraPins": 1,
+          "id": 27,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Climbing up, Kolb found a camp. He met a wise man who shared bread and showed two paths to the dragon's lair. One went through the hills, the other through a marsh."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 5100.0,
+            "y": 60.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 2,
+          "id": 28,
+          "pinValues": {
+            "option0": "Take the hills",
+            "option1": "Take the marsh"
+          },
+          "position": {
+            "x": 7080.0,
+            "y": 630.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 32,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Treading through the marsh, Kolb discovered a wailing ghost blocking his way."
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "(You have "
+                },
+                {
+                  "slot": 0
+                },
+                {
+                  "text": " gold.)"
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 8040.0,
+            "y": 1020.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 2,
+          "id": 34,
+          "pinValues": {
+            "option0": "Attack Ghost",
+            "option1": "Give Gold"
+          },
+          "position": {
+            "x": 9660.0,
+            "y": 1095.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "id": 35,
+          "pinValues": {
+            "name": "gold"
+          },
+          "position": {
+            "x": 7681.704461019663,
+            "y": 1435.8776291723825
+          },
+          "type": "getVariable"
+        },
+        {
+          "extraPins": 1,
+          "id": 37,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Kolb swung his axe as hard as he could, but the ghost hardly seemed to notice. The ghost drifted into Kolb, and a deep sleep took him over, from which he never awoke."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 10395.0,
+            "y": 705.0
+          },
+          "type": "showText"
+        },
+        {
+          "id": 38,
+          "pinValues": {
+            "text": "THE END"
+          },
+          "position": {
+            "x": 11385.0,
+            "y": 795.0
+          },
+          "type": "end"
+        },
+        {
+          "id": 39,
+          "pinValues": {
+            "name": "gold"
+          },
+          "position": {
+            "x": 8610.3997818549,
+            "y": 1568.2498737806732
+          },
+          "type": "getVariable"
+        },
+        {
+          "id": 40,
+          "position": {
+            "x": 8925.0,
+            "y": 1590.0
+          },
+          "type": "greaterOrEqual"
+        },
+        {
+          "id": 41,
+          "pinValues": {
+            "value": 15
+          },
+          "position": {
+            "x": 8655.0,
+            "y": 1665.0
+          },
+          "type": "integerValue"
+        },
+        {
+          "id": 42,
+          "position": {
+            "x": 9315.0,
+            "y": 1635.0
+          },
+          "type": "and"
+        },
+        {
+          "id": 43,
+          "position": {
+            "x": 8940.0,
+            "y": 1875.0
+          },
+          "type": "contains"
+        },
+        {
+          "id": 44,
+          "pinValues": {
+            "name": "info"
+          },
+          "position": {
+            "x": 8670.0,
+            "y": 1815.0
+          },
+          "type": "getVariable"
+        },
+        {
+          "id": 45,
+          "pinValues": {
+            "value": "ghost_bribable"
+          },
+          "position": {
+            "x": 8685.0,
+            "y": 1950.0
+          },
+          "type": "stringValue"
+        },
+        {
+          "id": 46,
+          "pinValues": {
+            "name": "gold"
+          },
+          "position": {
+            "x": 10650.0,
+            "y": 1395.0
+          },
+          "type": "setVariable"
+        },
+        {
+          "id": 47,
+          "pinValues": {
+            "name": "gold"
+          },
+          "position": {
+            "x": 10005.0,
+            "y": 1530.0
+          },
+          "type": "getVariable"
+        },
+        {
+          "id": 48,
+          "pinValues": {
+            "right": 15
+          },
+          "position": {
+            "x": 10320.0,
+            "y": 1515.0
+          },
+          "type": "subtract"
+        },
+        {
+          "extraPins": 1,
+          "id": 49,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Kolb remembered a story his Gran told him and tossed two gold chits for the ghost, and it faded away, allowing him to pass."
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "(You have "
+                },
+                {
+                  "slot": 0
+                },
+                {
+                  "text": " gold.)"
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 11040.0,
+            "y": 1425.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 1,
+          "id": 50,
+          "pinValues": {
+            "option0": "Turn to next page"
+          },
+          "position": {
+            "x": 11985.0,
+            "y": 1530.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 51,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Leaving the marsh behind him, Kolb could see the dragon's lair nearby, as well as a small, welcoming tavern."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 12930.0,
+            "y": 1020.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 2,
+          "id": 52,
+          "pinValues": {
+            "option0": "Go to the Lair",
+            "option1": "Go to Tavern"
+          },
+          "position": {
+            "x": 13890.0,
+            "y": 1110.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 53,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "A strong gust of wind blew Kolb's torch out, and knocked him into a pit where split his head and died."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 3300.0,
+            "y": 300.0
+          },
+          "type": "showText"
+        },
+        {
+          "id": 54,
+          "pinValues": {
+            "text": "THE END"
+          },
+          "position": {
+            "x": 4200.0,
+            "y": 300.0
+          },
+          "type": "end"
+        },
+        {
+          "extraPins": 1,
+          "id": 55,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "Climbing up, Kolb found a camp. He met a wise man who shared bread and showed two paths to the dragon's lair. One went through the hills, the other through a marsh."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 3300.0,
+            "y": 1125.0
+          },
+          "type": "showText"
+        },
+        {
+          "id": 56,
+          "pinValues": {
+            "name": "gold"
+          },
+          "position": {
+            "x": 10680.0,
+            "y": 1860.0
+          },
+          "type": "getVariable"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "author": "",
+    "title": ""
+  },
+  "schemaVersion": 4,
+  "variables": {
+    "gold": {
+      "type": "int",
+      "value": 25
+    },
+    "info": {
+      "type": "list",
+      "value": [
+        "ghost_bribable"
+      ]
+    }
+  }
+}

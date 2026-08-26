@@ -604,6 +604,18 @@ void NodeAdaptor::rebuildEditors()
     fitBody();
 }
 
+void NodeAdaptor::refreshProse()
+{
+    for (const loom::PinSpec& pin : editablePins())
+    {
+        if (pin.type != loom::PinType::Prose) continue;
+
+        const auto shown = editors.find(pin.name);
+
+        if (shown != editors.end()) showInEditor(shown->second, pinValue(pin));
+    }
+}
+
 void NodeAdaptor::setPinValue(const std::string& pin, loom::Value value)
 {
     data.pinValues[pin] = std::move(value);
@@ -714,6 +726,7 @@ void NodeAdaptor::inputConnectionCreated(const QtNodes::ConnectionId& connection
     feeds[pin] = connection;
 
     setWired(pin, true);
+    refreshProse();
 }
 
 void NodeAdaptor::inputConnectionDeleted(const QtNodes::ConnectionId& connection)
@@ -723,6 +736,7 @@ void NodeAdaptor::inputConnectionDeleted(const QtNodes::ConnectionId& connection
     feeds.erase(pin);
 
     setWired(pin, false);
+    refreshProse();
 }
 
 std::vector<ProseSlot> NodeAdaptor::valueSlots() const

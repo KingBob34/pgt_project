@@ -44,6 +44,55 @@ namespace
 
     constexpr int kBandHeight = 24;
 
+    // Insert Variable is a combo box, the same native control used by pins
+    // such as Get Variable. Its choices are renewed only as the list opens,
+    // so wires can still rename a slot without rebuilding this editor.
+    class SlotCombo final : public QComboBox
+    {
+    public:
+        SlotCombo(ProseSlots source, std::function<void(const ProseSlot&)> picked,
+                  QWidget* parent = nullptr)
+            : QComboBox(parent), offer(std::move(source)), insert(std::move(picked))
+        {
+            setPlaceholderText("Insert Variable");
+            setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+            setMinimumContentsLength(12);
+            setCurrentIndex(-1);
+
+            connect(this, &QComboBox::activated, this, [this](int at)
+            {
+                if (at >= 0 && at < static_cast<int>(choices.size())) insert(choices[at]);
+
+                setCurrentIndex(-1);
+            });
+        }
+
+    protected:
+        void showPopup() override
+        {
+            choices = offer ? offer() : std::vector<ProseSlot>();
+            clear();
+
+            if (choices.empty())
+            {
+                addItem("No value pins on this node");
+                setItemData(0, 0, Qt::UserRole - 1);
+            }
+            else
+            {
+                for (const ProseSlot& slot : choices) addItem(slot.label);
+            }
+
+            setCurrentIndex(-1);
+            QComboBox::showPopup();
+        }
+
+    private:
+        ProseSlots                              offer;
+        std::function<void(const ProseSlot&)>   insert;
+        std::vector<ProseSlot>                  choices;
+    };
+
     // What an untouched passage is written in. The band opens showing these,
     // so choosing what is already there is never a silent no-op.
     // Georgia was drawn for reading on a screen and ships with Windows, so a
@@ -386,18 +435,9 @@ QWidget* ProseEditor::buildBand()
     colourButton->setMenu(buildSwatches());
     row->addWidget(colourButton);
 
-    QToolButton* insert = new QToolButton(band);
-    insert->setText("Insert Variable");
+    SlotCombo* insert = new SlotCombo(offer, [this](const ProseSlot& slot) { insertSlot(slot); }, band);
     insert->setFocusPolicy(Qt::NoFocus);
-    insert->setPopupMode(QToolButton::InstantPopup);
     row->addWidget(insert);
-
-    // Built afresh on every showing, so a pin rewired a moment ago is named
-    // the way it is named now.
-    QMenu* values = new QMenu(insert);
-    insert->setMenu(values);
-
-    connect(values, &QMenu::aboutToShow, this, [this, values] { fillSlotMenu(values); });
 
     row->addStretch(1);
 
@@ -445,26 +485,6 @@ QMenu* ProseEditor::buildSwatches()
     menu->addAction(held);
 
     return menu;
-}
-
-void ProseEditor::fillSlotMenu(QMenu* menu)
-{
-    menu->clear();
-
-    const std::vector<ProseSlot> offered = offer ? offer() : std::vector<ProseSlot>();
-
-    if (offered.empty())
-    {
-        menu->addAction("No value pins on this node")->setEnabled(false);
-        return;
-    }
-
-    for (const ProseSlot& slot : offered)
-    {
-        QAction* entry = menu->addAction(QIcon(swatchOf(slot.colour)), slot.label);
-
-        connect(entry, &QAction::triggered, this, [this, slot] { insertSlot(slot); });
-    }
 }
 
 QTextCursor ProseEditor::working() const

@@ -12,6 +12,7 @@
 #include <QIcon>
 #include <QInputDialog>
 #include <QKeySequence>
+#include <QLabel>
 #include <QListWidget>
 #include <QMenu>
 #include <QMessageBox>
@@ -24,6 +25,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QStyle>
+#include <QSizePolicy>
 #include <QTabBar>
 #include <QTabWidget>
 #include <QTimer>
@@ -435,6 +437,21 @@ void EditorWindow::buildToolBar()
     bar->addAction(saveAction);
     bar->addAction(playAction);
     bar->addAction(playHereAction);
+
+    QWidget* stretch = new QWidget;
+    stretch->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    QLabel* feedback = new QLabel(
+        "<a style=\"color: #4da3ff; font-size: 18px; font-weight: bold; text-decoration: underline;\" href=\"https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=B8tSwU5hu0qBivA1z6kad_P3PPFIcBxOn0SrPrVD5epUNk5aS0k1TEJZMUdKNlJCWkdFTk9NMTdUMC4u\">Share anonymous feedback</a>");
+    feedback->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    feedback->setOpenExternalLinks(true);
+
+    QWidget* rightGap = new QWidget;
+    rightGap->setFixedWidth(80);
+
+    bar->addWidget(stretch);
+    bar->addWidget(feedback);
+    bar->addWidget(rightGap);
 }
 
 QWidget* EditorWindow::buildConsole()
