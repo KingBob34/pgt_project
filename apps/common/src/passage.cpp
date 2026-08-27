@@ -7,12 +7,19 @@ namespace loom::qt
 {
     namespace
     {
+        const char* const kDefaultFamily = "Georgia";
+        constexpr int kDefaultSize = 16;
+
         QString spanOf(const TextRun& run)
         {
-            QString style;
+            const QString family = run.font.empty() ? QString(kDefaultFamily) : toQt(run.font);
+            const long long size = run.size > 0 ? run.size : kDefaultSize;
 
-            if (!run.font.empty()) style += QString("font-family:'%1';").arg(toQt(run.font));
-            if (run.size > 0)      style += QString("font-size:%1pt;").arg(run.size);
+            QString style = QString("font-family:'%1';font-size:%2pt;").arg(family).arg(size);
+
+            if (run.bold)          style += "font-weight:bold;";
+            if (run.italic)        style += "font-style:italic;";
+            if (run.underline)     style += "text-decoration:underline;";
 
             if (!isNull(run.color))
             {

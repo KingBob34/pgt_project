@@ -689,4 +689,3 @@ loom::Value ProseEditor::passage() const
 }
 
 #include "prose_editor.moc"
-

@@ -683,6 +683,12 @@
           "fromPin": "out",
           "to": 71,
           "toPin": "in"
+        },
+        {
+          "from": 93,
+          "fromPin": "value",
+          "to": 63,
+          "toPin": "value0"
         }
       ],
       "meta": {
@@ -759,6 +765,21 @@
               "spans": [
                 {
                   "text": "Kolb remembered a story his Gran told him and tossed two gold chits for the ghost, and it faded away, allowing him to pass."
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "\n"
+                },
+                {
+                  "text": "(You have "
+                },
+                {
+                  "slot": 0
+                },
+                {
+                  "text": " gold)"
                 }
               ]
             }
@@ -971,6 +992,17 @@
             "y": 330.0
           },
           "type": "goToScene"
+        },
+        {
+          "id": 93,
+          "pinValues": {
+            "name": "gold"
+          },
+          "position": {
+            "x": 2985.0,
+            "y": 900.0
+          },
+          "type": "getVariable"
         }
       ]
     },
