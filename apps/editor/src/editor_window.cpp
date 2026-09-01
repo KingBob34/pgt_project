@@ -128,10 +128,20 @@ namespace
     // pulled in with them.
     const char* const kUnusedPlugins = "networkinformation,tls,generic,iconengines";
 
-    // Where a file dialog opens when the story it is about has no path yet.
-    QString storyFolder(const QString& current)
+    // Where a file dialog opens, which is on the story itself so that its name
+    // is the one already filled in. Empty when the story has no path yet.
+    QString storyStart(const QString& current)
     {
         return current.isEmpty() ? QString(LOOM_STORIES_DIR) : current;
+    }
+
+    // The same place as a folder. A chooser that wants a folder and is handed
+    // a file opens with that file's name in its box and then refuses it, so
+    // the folder has to be named rather than the story inside it.
+    QString storyFolder(const QString& current)
+    {
+        return current.isEmpty() ? QString(LOOM_STORIES_DIR)
+                                 : QFileInfo(current).absolutePath();
     }
 
     // Overwriting, because the same folder may be exported into twice.
@@ -1214,7 +1224,7 @@ void EditorWindow::newStory()
 
 void EditorWindow::chooseStory()
 {
-    const QString path = QFileDialog::getOpenFileName(this, "Open Story", storyFolder(storyPath),
+    const QString path = QFileDialog::getOpenFileName(this, "Open Story", storyStart(storyPath),
                                                       "Loom stories (*.loom);;All files (*)");
 
     if (!path.isEmpty()) openStory(path);
@@ -1281,7 +1291,7 @@ bool EditorWindow::saveStory()
 
 bool EditorWindow::saveStoryAs()
 {
-    const QString path = QFileDialog::getSaveFileName(this, "Save Story", storyFolder(storyPath),
+    const QString path = QFileDialog::getSaveFileName(this, "Save Story", storyStart(storyPath),
                                                       "Loom stories (*.loom)");
 
     return path.isEmpty() ? false : writeStory(path);

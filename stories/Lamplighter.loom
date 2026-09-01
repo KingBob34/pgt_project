@@ -1,0 +1,277 @@
+{
+  "entry": "scene",
+  "graphs": [
+    {
+      "connections": [
+        {
+          "from": 1,
+          "fromPin": "out",
+          "to": 14,
+          "toPin": "in"
+        },
+        {
+          "from": 14,
+          "fromPin": "out",
+          "to": 15,
+          "toPin": "in"
+        },
+        {
+          "from": 15,
+          "fromPin": "chosen0",
+          "to": 16,
+          "toPin": "in"
+        },
+        {
+          "from": 16,
+          "fromPin": "out",
+          "to": 18,
+          "toPin": "in"
+        },
+        {
+          "from": 17,
+          "fromPin": "value",
+          "to": 16,
+          "toPin": "value0"
+        },
+        {
+          "from": 18,
+          "fromPin": "chosen0",
+          "to": 22,
+          "toPin": "in"
+        },
+        {
+          "from": 18,
+          "fromPin": "chosen1",
+          "to": 24,
+          "toPin": "in"
+        },
+        {
+          "from": 19,
+          "fromPin": "result",
+          "to": 18,
+          "toPin": "enabled0"
+        },
+        {
+          "from": 20,
+          "fromPin": "value",
+          "to": 19,
+          "toPin": "left"
+        },
+        {
+          "from": 21,
+          "fromPin": "value",
+          "to": 19,
+          "toPin": "right"
+        }
+      ],
+      "meta": {
+        "author": "",
+        "title": ""
+      },
+      "name": "scene",
+      "nodes": [
+        {
+          "id": 1,
+          "position": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "type": "sceneStart"
+        },
+        {
+          "extraPins": 1,
+          "id": 14,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "The "
+                },
+                {
+                  "font": "Arial",
+                  "size": 22,
+                  "text": "storm"
+                },
+                {
+                  "text": " claws at the "
+                },
+                {
+                  "bold": true,
+                  "italic": true,
+                  "text": "lighthouse"
+                },
+                {
+                  "text": " glass. The "
+                },
+                {
+                  "text": "lamp",
+                  "underline": true
+                },
+                {
+                  "text": " "
+                },
+                {
+                  "color": {
+                    "b": 0.16862745583057404,
+                    "g": 0.2235294133424759,
+                    "r": 0.7529411911964417
+                  },
+                  "text": "gutters"
+                },
+                {
+                  "text": "."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 315.0,
+            "y": -15.0
+          },
+          "type": "showText"
+        },
+        {
+          "extraPins": 1,
+          "id": 15,
+          "pinValues": {
+            "option0": "Turn to next page"
+          },
+          "position": {
+            "x": 1275.0,
+            "y": 30.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "extraPins": 1,
+          "id": 16,
+          "pinValues": {
+            "textIn": {
+              "spans": [
+                {
+                  "text": "You have "
+                },
+                {
+                  "slot": 0
+                },
+                {
+                  "text": " amount of oil left."
+                }
+              ]
+            }
+          },
+          "position": {
+            "x": 1931.7599999999995,
+            "y": 89.27999999999999
+          },
+          "type": "showText"
+        },
+        {
+          "id": 17,
+          "pinValues": {
+            "name": "oil"
+          },
+          "position": {
+            "x": 1560.0,
+            "y": 480.0
+          },
+          "type": "getVariable"
+        },
+        {
+          "extraPins": 2,
+          "id": 18,
+          "pinValues": {
+            "option0": "Feed the lamp",
+            "option1": "Go to the storeroom"
+          },
+          "position": {
+            "x": 3300.0,
+            "y": 375.0
+          },
+          "type": "showChoices"
+        },
+        {
+          "id": 19,
+          "position": {
+            "x": 2880.0,
+            "y": 645.0
+          },
+          "type": "greaterOrEqual"
+        },
+        {
+          "id": 20,
+          "pinValues": {
+            "name": "oil"
+          },
+          "position": {
+            "x": 2595.0,
+            "y": 615.0
+          },
+          "type": "getVariable"
+        },
+        {
+          "id": 21,
+          "pinValues": {
+            "value": 1
+          },
+          "position": {
+            "x": 2625.0,
+            "y": 750.0
+          },
+          "type": "integerValue"
+        },
+        {
+          "id": 22,
+          "pinValues": {
+            "text": "The light holds."
+          },
+          "position": {
+            "x": 3915.359999999999,
+            "y": 361.43999999999994
+          },
+          "type": "end"
+        },
+        {
+          "id": 24,
+          "pinValues": {
+            "scene": "storeroom"
+          },
+          "position": {
+            "x": 3955.982349537038,
+            "y": 658.1675513926994
+          },
+          "type": "goToScene"
+        }
+      ]
+    },
+    {
+      "connections": [],
+      "meta": {
+        "author": "",
+        "title": ""
+      },
+      "name": "storeroom",
+      "nodes": [
+        {
+          "id": 23,
+          "position": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "type": "sceneStart"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "author": "",
+    "title": ""
+  },
+  "schemaVersion": 4,
+  "variables": {
+    "oil": {
+      "type": "int",
+      "value": 0
+    }
+  }
+}

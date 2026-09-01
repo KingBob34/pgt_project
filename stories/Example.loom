@@ -169,7 +169,7 @@
         {
           "id": 1,
           "position": {
-            "x": -150.0,
+            "x": -750.0,
             "y": 300.0
           },
           "type": "sceneStart"
@@ -212,7 +212,7 @@
             "width": 813
           },
           "position": {
-            "x": 225.0,
+            "x": -375.0,
             "y": 285.0
           },
           "type": "showText"
@@ -224,7 +224,7 @@
             "option0": "Turn to next page"
           },
           "position": {
-            "x": 1245.0,
+            "x": 645.0,
             "y": 345.0
           },
           "type": "showChoices"
@@ -242,8 +242,8 @@
             }
           },
           "position": {
-            "x": 1785.0,
-            "y": 330.0
+            "x": 1395.0,
+            "y": 300.0
           },
           "type": "showText"
         },
@@ -256,8 +256,8 @@
             "option2": "Walk up the trail"
           },
           "position": {
-            "x": 2715.0,
-            "y": 330.0
+            "x": 2235.0,
+            "y": 300.0
           },
           "type": "showChoices"
         },
@@ -265,17 +265,19 @@
           "extraPins": 1,
           "id": 6,
           "pinValues": {
+            "height": 320,
             "textIn": {
               "spans": [
                 {
                   "text": "Kolb stepped into the frozen cave, but his Nord blood kept him warm. A smelly tunnel climbed ahead of him, and wind howled from another to his left. A ladder was nearby as well."
                 }
               ]
-            }
+            },
+            "width": 640
           },
           "position": {
-            "x": 3300.0,
-            "y": -450.0
+            "x": 2850.0,
+            "y": -210.0
           },
           "type": "showText"
         },
@@ -288,7 +290,7 @@
             "option2": "Climb the ladder"
           },
           "position": {
-            "x": 4350.0,
+            "x": 3750.0,
             "y": -450.0
           },
           "type": "showChoices"
@@ -306,8 +308,8 @@
             }
           },
           "position": {
-            "x": 5100.0,
-            "y": -1065.0
+            "x": 4350.0,
+            "y": -915.0
           },
           "type": "showText"
         },
@@ -319,8 +321,8 @@
             "option1": "Swing Axe"
           },
           "position": {
-            "x": 5970.0,
-            "y": -1080.0
+            "x": 6285.0,
+            "y": -1110.0
           },
           "type": "showChoices"
         },
@@ -337,8 +339,8 @@
             }
           },
           "position": {
-            "x": 6600.0,
-            "y": -1305.0
+            "x": 6915.0,
+            "y": -1335.0
           },
           "type": "showText"
         },
@@ -348,8 +350,8 @@
             "text": "The End"
           },
           "position": {
-            "x": 7575.0,
-            "y": -1140.0
+            "x": 7890.0,
+            "y": -1170.0
           },
           "type": "end"
         },
@@ -366,8 +368,8 @@
             }
           },
           "position": {
-            "x": 6585.0,
-            "y": -765.0
+            "x": 6900.0,
+            "y": -795.0
           },
           "type": "showText"
         },
@@ -378,8 +380,8 @@
             "option0": "Turn to next page"
           },
           "position": {
-            "x": 7530.0,
-            "y": -705.0
+            "x": 7845.0,
+            "y": -735.0
           },
           "type": "showChoices"
         },
@@ -421,14 +423,14 @@
             "textIn": {
               "spans": [
                 {
-                  "text": "A strong gust of wind blew Kolb's torch out, and knocked him into a pit where split his head and died."
+                  "text": "A strong gust of wind blew Kolb's torch out, and knocked him into a pit where he split his head and died."
                 }
               ]
             }
           },
           "position": {
-            "x": 5100.0,
-            "y": -495.0
+            "x": 4350.0,
+            "y": -420.0
           },
           "type": "showText"
         },
@@ -438,8 +440,8 @@
             "text": "THE END"
           },
           "position": {
-            "x": 5955.0,
-            "y": -465.0
+            "x": 5475.0,
+            "y": -570.0
           },
           "type": "end"
         },
@@ -456,8 +458,8 @@
             }
           },
           "position": {
-            "x": 5100.0,
-            "y": 60.0
+            "x": 4350.0,
+            "y": 75.0
           },
           "type": "showText"
         },
@@ -478,17 +480,19 @@
           "extraPins": 1,
           "id": 53,
           "pinValues": {
+            "height": 320,
             "textIn": {
               "spans": [
                 {
-                  "text": "A strong gust of wind blew Kolb's torch out, and knocked him into a pit where split his head and died."
+                  "text": "A strong gust of wind blew Kolb's torch out, and knocked him into a pit where he split his head and died."
                 }
               ]
-            }
+            },
+            "width": 640
           },
           "position": {
-            "x": 3300.0,
-            "y": 300.0
+            "x": 2850.0,
+            "y": 285.0
           },
           "type": "showText"
         },
@@ -498,8 +502,8 @@
             "text": "THE END"
           },
           "position": {
-            "x": 4200.0,
-            "y": 300.0
+            "x": 3750.0,
+            "y": 285.0
           },
           "type": "end"
         },
@@ -507,17 +511,19 @@
           "extraPins": 1,
           "id": 55,
           "pinValues": {
+            "height": 320,
             "textIn": {
               "spans": [
                 {
                   "text": "Climbing up, Kolb found a camp. He met a wise man who shared bread and showed two paths to the dragon's lair. One went through the hills, the other through a marsh."
                 }
               ]
-            }
+            },
+            "width": 640
           },
           "position": {
-            "x": 3300.0,
-            "y": 1125.0
+            "x": 2850.0,
+            "y": 780.0
           },
           "type": "showText"
         },
@@ -802,7 +808,7 @@
           "type": "getVariable"
         },
         {
-          "extraPins": 1,
+          "extraPins": 4,
           "id": 65,
           "pinValues": {
             "textIn": {
@@ -823,10 +829,7 @@
                   "slot": 0
                 },
                 {
-                  "text": " "
-                },
-                {
-                  "text": "gold.)"
+                  "text": " gold.)"
                 }
               ]
             }
@@ -937,8 +940,8 @@
             "name": "gold"
           },
           "position": {
-            "x": -138.0804183813434,
-            "y": 396.19598765432136
+            "x": 45.0,
+            "y": 450.0
           },
           "type": "getVariable"
         },
@@ -1084,7 +1087,7 @@
             "textIn": {
               "spans": [
                 {
-                  "text": "Kolb found the lair where the dragon slept, tendrils of smoke wafting from it's nostrils. The air made Kolb's eyes sting, and he nearly slipped on the bones of men, picked clean. The beast lay on its side, the throat and belly both waiting targets."
+                  "text": "Kolb found the lair where the dragon slept, tendrils of smoke wafting from its nostrils. The air made Kolb's eyes sting, and he nearly slipped on the bones of men, picked clean. The beast lay on its side, the throat and belly both waiting targets."
                 }
               ]
             }

@@ -46,6 +46,7 @@ protected:
     void keyReleaseEvent(QKeyEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     // Every way a pan can end goes through here, or the hand cursor is left
@@ -107,6 +108,10 @@ private:
     bool panned  = false;
     QPoint panOrigin;
     QPoint panLast;
+
+    // Where the canvas's top left corner sits in the window, so that a panel
+    // moving that corner can be answered by scrolling as far the other way.
+    QPoint corner;
 };
 
 #endif //LOOM_EDITOR_GRAPH_VIEW_H

@@ -16,6 +16,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
+#include <QResizeEvent>
 #include <QScrollBar>
 #include <QSet>
 #include <QWheelEvent>
@@ -785,6 +786,27 @@ void GraphView::wheelEvent(QWheelEvent* event)
     }
 
     QtNodes::GraphicsView::wheelEvent(event);
+}
+
+void GraphView::resizeEvent(QResizeEvent* event)
+{
+    QtNodes::GraphicsView::resizeEvent(event);
+
+    const QPoint was = corner;
+    corner = mapTo(window(), QPoint(0, 0));
+
+    // The first layout is where the canvas is put, not somewhere it moved to.
+    if (!event->oldSize().isValid()) return;
+
+    // A panel on the left or the top does not take width off the canvas so
+    // much as slide its corner inwards, and the view goes on showing the same
+    // scene point at that corner. Scrolling by as far as the corner came in
+    // leaves the graph where the author last saw it, which is what a panel on
+    // the right does by itself.
+    const QPoint moved = corner - was;
+
+    horizontalScrollBar()->setValue(horizontalScrollBar()->value() + moved.x());
+    verticalScrollBar()->setValue(verticalScrollBar()->value() + moved.y());
 }
 
 void GraphView::onDeleteSelectedObjects()
